@@ -114,3 +114,28 @@ export const searchApi = {
     return data
   },
 }
+
+export interface AgentChatRequest {
+  message: string
+  repoId?: string
+  agentType?: 'explorer' | 'analyzer' | 'doc_writer'
+}
+
+export interface AgentChatResponse {
+  response: string
+}
+
+export const agentApi = {
+  chat: async (
+    message: string,
+    repoId?: string,
+    agentType: 'explorer' | 'analyzer' | 'doc_writer' = 'explorer'
+  ): Promise<AgentChatResponse> => {
+    const { data } = await api.post('/api/agents/chat', {
+      message,
+      repo_id: repoId,
+      agent_type: agentType,
+    })
+    return data
+  },
+}

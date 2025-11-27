@@ -2,6 +2,7 @@ import { Routes, Route, Link } from 'react-router-dom'
 import RepositoryListPage from './pages/RepositoryListPage'
 import RepositoryDetailPage from './pages/RepositoryDetailPage'
 import SearchPage from './pages/SearchPage'
+import { CommandBar } from './components/CommandBar'
 import { Search } from 'lucide-react'
 
 function App() {
@@ -38,6 +39,8 @@ function App() {
           <Route path="/search" element={<SearchPage />} />
         </Routes>
       </main>
+
+      <CommandBar />
     </div>
   )
 }
