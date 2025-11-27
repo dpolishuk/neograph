@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/dpolishuk/neograph/backend/internal/agent"
 	"github.com/dpolishuk/neograph/backend/internal/config"
@@ -20,6 +21,8 @@ type Handler struct {
 	pipeline    *indexer.Pipeline
 	writer      *db.GraphWriter
 	graphReader *db.GraphReader
+	wikiReader  *db.WikiReader
+	wikiWriter  *db.WikiWriter
 	teiClient   *embedding.TEIClient
 	agentProxy  *agent.AgentProxy
 }
@@ -32,6 +35,8 @@ func NewHandler(cfg *config.Config, dbClient *db.Neo4jClient) *Handler {
 		pipeline:    indexer.NewPipeline(dbClient),
 		writer:      db.NewGraphWriter(dbClient),
 		graphReader: db.NewGraphReader(dbClient),
+		wikiReader:  db.NewWikiReader(dbClient),
+		wikiWriter:  db.NewWikiWriter(dbClient),
 		teiClient:   embedding.NewTEIClient(cfg.TEI_URL),
 		agentProxy:  agent.NewAgentProxy(cfg.AgentURL),
 	}
@@ -303,4 +308,98 @@ func (h *Handler) ProxyAgentChat(c fiber.Ctx) error {
 	}
 
 	return c.JSON(response)
+}
+
+// GetWikiNavigation returns the wiki navigation tree
+func (h *Handler) GetWikiNavigation(c fiber.Ctx) error {
+	id := c.Params("id")
+	nav, err := h.wikiReader.GetNavigation(c.Context(), id)
+	if err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": err.Error()})
+	}
+	return c.JSON(nav)
+}
+
+// GetWikiPage returns a specific wiki page
+func (h *Handler) GetWikiPage(c fiber.Ctx) error {
+	repoID := c.Params("id")
+	slug := c.Params("slug")
+
+	if slug == "" {
+		slug = "overview" // Default page
+	}
+
+	page, err := h.wikiReader.GetPage(c.Context(), repoID, slug)
+	if err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": err.Error()})
+	}
+	if page == nil {
+		return c.Status(404).JSON(fiber.Map{"error": "wiki page not found"})
+	}
+	return c.JSON(page)
+}
+
+// GenerateWiki triggers wiki generation for a repository
+func (h *Handler) GenerateWiki(c fiber.Ctx) error {
+	repoID := c.Params("id")
+
+	// Verify repository exists
+	repo, err := db.GetRepository(c.Context(), h.dbClient, repoID)
+	if err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": err.Error()})
+	}
+	if repo == nil {
+		return c.Status(404).JSON(fiber.Map{"error": "repository not found"})
+	}
+
+	// Update status to generating
+	status := &models.WikiStatus{
+		Status:     "generating",
+		Progress:   0,
+		TotalPages: 5, // Estimate
+	}
+	h.wikiWriter.UpdateWikiStatus(c.Context(), repoID, status)
+
+	// Start generation in background
+	go h.generateWikiPages(repo)
+
+	return c.JSON(fiber.Map{"status": "generation started"})
+}
+
+// GetWikiStatus returns the current wiki generation status
+func (h *Handler) GetWikiStatus(c fiber.Ctx) error {
+	repoID := c.Params("id")
+	status, err := h.wikiWriter.GetWikiStatus(c.Context(), repoID)
+	if err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": err.Error()})
+	}
+	return c.JSON(status)
+}
+
+// generateWikiPages generates all wiki pages for a repository (stub for now)
+func (h *Handler) generateWikiPages(repo *models.Repository) {
+	ctx := context.Background()
+
+	// Clear existing wiki
+	h.wikiWriter.ClearWiki(ctx, repo.ID)
+
+	// Create placeholder overview page
+	overviewPage := &models.WikiPage{
+		RepoID:     repo.ID,
+		Slug:       "overview",
+		Title:      "Overview",
+		Order:      1,
+		ParentSlug: "",
+		Content:    fmt.Sprintf("# %s\n\nDocumentation for %s.\n\n*Wiki generation coming soon...*", repo.Name, repo.Name),
+		Diagrams:   []models.Diagram{},
+	}
+	h.wikiWriter.WritePage(ctx, overviewPage)
+
+	// Update status to ready
+	status := &models.WikiStatus{
+		Status:     "ready",
+		Progress:   100,
+		TotalPages: 1,
+	}
+	h.wikiWriter.UpdateWikiStatus(ctx, repo.ID, status)
 }
