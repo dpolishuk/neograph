@@ -79,56 +79,7 @@ func (w *GraphWriter) WriteEntity(ctx context.Context, repoID string, entity *mo
 	_, err := w.client.ExecuteWrite(ctx, func(tx neo4j.ManagedTransaction) (any, error) {
 		// Create entity node with appropriate label
 		var query string
-		switch entity.Type {
-		case models.EntityFunction:
-			query = `
-				MATCH (f:File {repoId: $repoId, path: $filePath})
-				CREATE (e:Function {
-					id: $id,
-					name: $name,
-					signature: $signature,
-					docstring: $docstring,
-					startLine: $startLine,
-					endLine: $endLine,
-					filePath: $filePath,
-					repoId: $repoId
-				})
-				CREATE (f)-[:DECLARES]->(e)
-			`
-		case models.EntityClass:
-			query = `
-				MATCH (f:File {repoId: $repoId, path: $filePath})
-				CREATE (e:Class {
-					id: $id,
-					name: $name,
-					docstring: $docstring,
-					startLine: $startLine,
-					endLine: $endLine,
-					filePath: $filePath,
-					repoId: $repoId
-				})
-				CREATE (f)-[:DECLARES]->(e)
-			`
-		case models.EntityMethod:
-			query = `
-				MATCH (f:File {repoId: $repoId, path: $filePath})
-				CREATE (e:Method {
-					id: $id,
-					name: $name,
-					signature: $signature,
-					docstring: $docstring,
-					startLine: $startLine,
-					endLine: $endLine,
-					filePath: $filePath,
-					repoId: $repoId
-				})
-				CREATE (f)-[:DECLARES]->(e)
-			`
-		default:
-			return nil, nil
-		}
-
-		_, err := tx.Run(ctx, query, map[string]any{
+		params := map[string]any{
 			"id":        entityID,
 			"name":      entity.Name,
 			"signature": entity.Signature,
@@ -137,7 +88,116 @@ func (w *GraphWriter) WriteEntity(ctx context.Context, repoID string, entity *mo
 			"endLine":   entity.EndLine,
 			"filePath":  entity.FilePath,
 			"repoId":    repoID,
-		})
+		}
+
+		// Add embedding if available
+		if len(entity.Embedding) > 0 {
+			params["embedding"] = entity.Embedding
+		}
+
+		switch entity.Type {
+		case models.EntityFunction:
+			if len(entity.Embedding) > 0 {
+				query = `
+					MATCH (f:File {repoId: $repoId, path: $filePath})
+					CREATE (e:Function {
+						id: $id,
+						name: $name,
+						signature: $signature,
+						docstring: $docstring,
+						startLine: $startLine,
+						endLine: $endLine,
+						filePath: $filePath,
+						repoId: $repoId,
+						embedding: $embedding
+					})
+					CREATE (f)-[:DECLARES]->(e)
+				`
+			} else {
+				query = `
+					MATCH (f:File {repoId: $repoId, path: $filePath})
+					CREATE (e:Function {
+						id: $id,
+						name: $name,
+						signature: $signature,
+						docstring: $docstring,
+						startLine: $startLine,
+						endLine: $endLine,
+						filePath: $filePath,
+						repoId: $repoId
+					})
+					CREATE (f)-[:DECLARES]->(e)
+				`
+			}
+		case models.EntityClass:
+			if len(entity.Embedding) > 0 {
+				query = `
+					MATCH (f:File {repoId: $repoId, path: $filePath})
+					CREATE (e:Class {
+						id: $id,
+						name: $name,
+						docstring: $docstring,
+						startLine: $startLine,
+						endLine: $endLine,
+						filePath: $filePath,
+						repoId: $repoId,
+						embedding: $embedding
+					})
+					CREATE (f)-[:DECLARES]->(e)
+				`
+			} else {
+				query = `
+					MATCH (f:File {repoId: $repoId, path: $filePath})
+					CREATE (e:Class {
+						id: $id,
+						name: $name,
+						docstring: $docstring,
+						startLine: $startLine,
+						endLine: $endLine,
+						filePath: $filePath,
+						repoId: $repoId
+					})
+					CREATE (f)-[:DECLARES]->(e)
+				`
+			}
+		case models.EntityMethod:
+			if len(entity.Embedding) > 0 {
+				query = `
+					MATCH (f:File {repoId: $repoId, path: $filePath})
+					CREATE (e:Method {
+						id: $id,
+						name: $name,
+						signature: $signature,
+						docstring: $docstring,
+						startLine: $startLine,
+						endLine: $endLine,
+						filePath: $filePath,
+						repoId: $repoId,
+						embedding: $embedding
+					})
+					CREATE (f)-[:DECLARES]->(e)
+				`
+			} else {
+				query = `
+					MATCH (f:File {repoId: $repoId, path: $filePath})
+					CREATE (e:Method {
+						id: $id,
+						name: $name,
+						signature: $signature,
+						docstring: $docstring,
+						startLine: $startLine,
+						endLine: $endLine,
+						filePath: $filePath,
+						repoId: $repoId
+					})
+					CREATE (f)-[:DECLARES]->(e)
+				`
+			}
+		default:
+			return nil, nil
+		}
+
+		_, err := tx.Run(ctx, query, params)
 		return nil, err
 	})
 

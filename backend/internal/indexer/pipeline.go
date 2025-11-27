@@ -3,23 +3,32 @@ package indexer
 import (
 	"context"
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 
 	"github.com/dpolishuk/neograph/backend/internal/db"
+	"github.com/dpolishuk/neograph/backend/internal/embedding"
 	"github.com/dpolishuk/neograph/backend/internal/models"
 )
 
 type Pipeline struct {
 	dbClient  *db.Neo4jClient
 	extractor *Extractor
+	teiClient *embedding.TEIClient
 }
 
 func NewPipeline(dbClient *db.Neo4jClient) *Pipeline {
 	return &Pipeline{
 		dbClient:  dbClient,
 		extractor: NewExtractor(),
+		teiClient: nil, // Optional, set with SetTEIClient
 	}
+}
+
+// SetTEIClient optionally enables embedding generation
+func (p *Pipeline) SetTEIClient(client *embedding.TEIClient) {
+	p.teiClient = client
 }
 
 func (p *Pipeline) Close() {
@@ -79,6 +88,14 @@ func (p *Pipeline) IndexDirectory(ctx context.Context, dirPath, repoID string) (
 		result.EntitiesFound += len(entities)
 	}
 
+	// Generate embeddings for all entities if TEIClient is available
+	if p.teiClient != nil && len(result.Entities) > 0 {
+		if err := p.generateEmbeddings(ctx, result.Entities); err != nil {
+			log.Printf("Warning: failed to generate embeddings: %v", err)
+			// Don't fail the entire indexing if embeddings fail
+		}
+	}
+
 	return result, nil
 }
 
@@ -119,4 +136,45 @@ func hashContent(content []byte) string {
 		h = ((h << 5) + h) + uint64(b)
 	}
 	return fmt.Sprintf("%x", h)
+}
+
+// generateEmbeddings generates embeddings for entities in batches
+func (p *Pipeline) generateEmbeddings(ctx context.Context, entities []models.CodeEntity) error {
+	const batchSize = 32
+
+	for i := 0; i < len(entities); i += batchSize {
+		end := i + batchSize
+		if end > len(entities) {
+			end = len(entities)
+		}
+
+		batch := entities[i:end]
+
+		// Prepare embedding texts
+		texts := make([]string, len(batch))
+		for j, entity := range batch {
+			// Create embedding text from: signature + " " + docstring + " " + name
+			text := entity.Signature
+			if entity.Docstring != "" {
+				text += " " + entity.Docstring
+			}
+			text += " " + entity.Name
+			texts[j] = text
+		}
+
+		// Generate embeddings
+		embeddings, err := p.teiClient.Embed(ctx, texts)
+		if err != nil {
+			return fmt.Errorf("failed to generate embeddings for batch %d-%d: %w", i, end, err)
+		}
+
+		// Store embeddings back in entities
+		for j, embedding := range embeddings {
+			entities[i+j].Embedding = embedding
+		}
+
+		log.Printf("Generated embeddings for entities %d-%d", i, end)
+	}
+
+	return nil
 }
