@@ -1,0 +1,82 @@
+version: '3.8'
+
+services:
+  neo4j:
+    image: neo4j:5.26.0-community
+    container_name: neograph-neo4j
+    ports:
+      - "7474:7474"
+      - "7687:7687"
+    environment:
+      - NEO4J_AUTH=${NEO4J_AUTH}
+      - NEO4J_PLUGINS=${NEO4J_PLUGINS}
+      - NEO4J_dbms_security_procedures_unrestricted=apoc.*
+      - NEO4J_dbms_security_procedures_allowlist=apoc.*
+    volumes:
+      - ./data/neo4j:/data
+      - ./docker/neo4j/init:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:7474"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - neograph
+
+  tei:
+    image: ghcr.io/huggingface/text-embeddings-inference:cpu-1.5
+    container_name: neograph-tei
+    ports:
+      - "8080:80"
+    environment:
+      - MODEL_ID=${TEI_MODEL}
+    volumes:
+      - ~/.cache/huggingface:/data
+    command: --model-id ${TEI_MODEL} --port 80
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - neograph
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: neograph-backend
+    ports:
+      - "${BACKEND_PORT}:3001"
+    environment:
+      - NEO4J_URI=${NEO4J_URI}
+      - NEO4J_USER=${NEO4J_USER}
+      - NEO4J_PASSWORD=${NEO4J_PASSWORD}
+      - TEI_URL=${TEI_URL}
+    volumes:
+      - ./data/repos:/app/repos
+    depends_on:
+      neo4j:
+        condition: service_healthy
+      tei:
+        condition: service_healthy
+    networks:
+      - neograph
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: neograph-frontend
+    ports:
+      - "5173:5173"
+    environment:
+      - VITE_API_URL=${VITE_API_URL}
+    depends_on:
+      - backend
+    networks:
+      - neograph
+
+networks:
+  neograph:
+    driver: bridge
