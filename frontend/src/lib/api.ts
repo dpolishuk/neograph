@@ -26,6 +26,19 @@ export interface CreateRepositoryInput {
   defaultBranch?: string
 }
 
+export interface FileNode {
+  id: string
+  path: string
+  language: string
+  functions: Array<{
+    id: string
+    name: string
+    signature: string
+    startLine: number
+    endLine: number
+  }>
+}
+
 export const repositoryApi = {
   list: async (): Promise<Repository[]> => {
     const { data } = await api.get('/api/repositories')
@@ -48,5 +61,10 @@ export const repositoryApi = {
 
   reindex: async (id: string): Promise<void> => {
     await api.post(`/api/repositories/${id}/reindex`)
+  },
+
+  getFiles: async (id: string): Promise<FileNode[]> => {
+    const { data } = await api.get(`/api/repositories/${id}/files`)
+    return data
   },
 }
