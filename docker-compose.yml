@@ -1,3 +1,7 @@
+# NeoGraph Docker Compose Configuration
+# Note: backend/Dockerfile and frontend/Dockerfile are created in Task 3 and Task 13
+# Run `docker-compose up neo4j tei` first, then full stack after Dockerfiles exist
+
 version: '3.8'
 
 services:
@@ -31,7 +35,7 @@ services:
     environment:
       - MODEL_ID=${TEI_MODEL}
     volumes:
-      - ~/.cache/huggingface:/data
+      - ./data/huggingface:/data
     command: --model-id ${TEI_MODEL} --port 80
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:80/health"]

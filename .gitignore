@@ -14,8 +14,10 @@ agents/*.egg-info/
 # Data
 data/repos/*
 data/neo4j/*
+data/huggingface/*
 !data/repos/.gitkeep
 !data/neo4j/.gitkeep
+!data/huggingface/.gitkeep
 
 # IDE
 .idea/
