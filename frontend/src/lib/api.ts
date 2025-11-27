@@ -67,4 +67,9 @@ export const repositoryApi = {
     const { data } = await api.get(`/api/repositories/${id}/files`)
     return data
   },
+
+  getGraph: async (id: string, type: 'structure' | 'calls' = 'structure') => {
+    const { data } = await api.get(`/api/repositories/${id}/graph?type=${type}`)
+    return data
+  },
 }
