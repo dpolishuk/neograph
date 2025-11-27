@@ -10,6 +10,10 @@ func SetupRoutes(app *fiber.App, h *Handler) {
 	// Search endpoints
 	api.Get("/search", h.GlobalSearch)
 
+	// Agent proxy endpoints
+	agents := api.Group("/agents")
+	agents.Post("/chat", h.ProxyAgentChat)
+
 	// Repositories
 	repos := api.Group("/repositories")
 	repos.Get("/", h.ListRepositories)

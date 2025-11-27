@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 
+	"github.com/dpolishuk/neograph/backend/internal/agent"
 	"github.com/dpolishuk/neograph/backend/internal/config"
 	"github.com/dpolishuk/neograph/backend/internal/db"
 	"github.com/dpolishuk/neograph/backend/internal/embedding"
@@ -20,6 +21,7 @@ type Handler struct {
 	writer      *db.GraphWriter
 	graphReader *db.GraphReader
 	teiClient   *embedding.TEIClient
+	agentProxy  *agent.AgentProxy
 }
 
 func NewHandler(cfg *config.Config, dbClient *db.Neo4jClient) *Handler {
@@ -31,6 +33,7 @@ func NewHandler(cfg *config.Config, dbClient *db.Neo4jClient) *Handler {
 		writer:      db.NewGraphWriter(dbClient),
 		graphReader: db.NewGraphReader(dbClient),
 		teiClient:   embedding.NewTEIClient(cfg.TEI_URL),
+		agentProxy:  agent.NewAgentProxy(cfg.AgentURL),
 	}
 }
 
@@ -276,4 +279,28 @@ func (h *Handler) RepoSearch(c fiber.Ctx) error {
 	}
 
 	return c.JSON(results)
+}
+
+// ProxyAgentChat forwards chat requests to the Python agent service
+func (h *Handler) ProxyAgentChat(c fiber.Ctx) error {
+	var req agent.ChatRequest
+	if err := c.Bind().Body(&req); err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": "invalid request body"})
+	}
+
+	// Validate required fields
+	if req.Message == "" {
+		return c.Status(400).JSON(fiber.Map{"error": "message is required"})
+	}
+	if req.AgentType == "" {
+		req.AgentType = "explorer" // Default agent type
+	}
+
+	// Forward to agent service
+	response, err := h.agentProxy.Chat(c.Context(), req.Message, req.RepoID, req.AgentType)
+	if err != nil {
+		return c.Status(502).JSON(fiber.Map{"error": "failed to communicate with agent service: " + err.Error()})
+	}
+
+	return c.JSON(response)
 }

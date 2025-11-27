@@ -11,6 +11,7 @@ type Config struct {
 	Neo4jPass string
 	TEI_URL   string
 	ReposPath string
+	AgentURL  string
 }
 
 func Load() *Config {
@@ -21,6 +22,7 @@ func Load() *Config {
 		Neo4jPass: getEnv("NEO4J_PASSWORD", "neograph_password"),
 		TEI_URL:   getEnv("TEI_URL", "http://localhost:8080"),
 		ReposPath: getEnv("REPOS_PATH", "./repos"),
+		AgentURL:  getEnv("AGENT_URL", "http://localhost:8001"),
 	}
 }
 
