@@ -25,4 +25,10 @@ func SetupRoutes(app *fiber.App, h *Handler) {
 	repos.Get("/:id/graph", h.GetRepositoryGraph)
 	repos.Get("/:id/nodes/:nodeId", h.GetNodeDetail)
 	repos.Get("/:id/search", h.RepoSearch)
+
+	// Wiki endpoints
+	repos.Get("/:id/wiki", h.GetWikiNavigation)
+	repos.Get("/:id/wiki/status", h.GetWikiStatus)
+	repos.Post("/:id/wiki/generate", h.GenerateWiki)
+	repos.Get("/:id/wiki/:slug", h.GetWikiPage)
 }
