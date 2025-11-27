@@ -5,6 +5,7 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/dpolishuk/neograph/backend/internal/models"
 	"github.com/neo4j/neo4j-go-driver/v5/neo4j"
@@ -159,7 +160,13 @@ func (r *WikiReader) GetPage(ctx context.Context, repoID, slug string) (*models.
 		}
 
 		if generatedAt != nil {
-			page.GeneratedAt = generatedAt.(neo4j.Time).Time()
+			// Handle both time.Time and neo4j.Time
+			switch t := generatedAt.(type) {
+			case time.Time:
+				page.GeneratedAt = t
+			case neo4j.Time:
+				page.GeneratedAt = t.Time()
+			}
 		}
 
 		// Parse diagrams from JSON string if stored that way
