@@ -14,4 +14,6 @@ func SetupRoutes(app *fiber.App, h *Handler) {
 	repos.Get("/:id", h.GetRepository)
 	repos.Delete("/:id", h.DeleteRepository)
 	repos.Post("/:id/reindex", h.ReindexRepository)
+	repos.Get("/:id/files", h.GetRepositoryFiles)
+	repos.Get("/:id/graph", h.GetRepositoryGraph)
 }

@@ -3,6 +3,8 @@ package indexer
 import (
 	"context"
 	"testing"
+
+	"github.com/dpolishuk/neograph/backend/internal/models"
 )
 
 func TestExtractGoFunctions(t *testing.T) {
@@ -423,7 +425,7 @@ func main() {
 	}
 
 	// Find main function
-	var mainFunc *CodeEntity
+	var mainFunc *models.CodeEntity
 	for i := range entities {
 		if entities[i].Name == "main" {
 			mainFunc = &entities[i]

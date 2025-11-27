@@ -12,20 +12,22 @@ import (
 )
 
 type Handler struct {
-	cfg      *config.Config
-	dbClient *db.Neo4jClient
-	gitSvc   *git.GitService
-	pipeline *indexer.Pipeline
-	writer   *db.GraphWriter
+	cfg         *config.Config
+	dbClient    *db.Neo4jClient
+	gitSvc      *git.GitService
+	pipeline    *indexer.Pipeline
+	writer      *db.GraphWriter
+	graphReader *db.GraphReader
 }
 
 func NewHandler(cfg *config.Config, dbClient *db.Neo4jClient) *Handler {
 	return &Handler{
-		cfg:      cfg,
-		dbClient: dbClient,
-		gitSvc:   git.NewGitService(cfg.ReposPath),
-		pipeline: indexer.NewPipeline(dbClient),
-		writer:   db.NewGraphWriter(dbClient),
+		cfg:         cfg,
+		dbClient:    dbClient,
+		gitSvc:      git.NewGitService(cfg.ReposPath),
+		pipeline:    indexer.NewPipeline(dbClient),
+		writer:      db.NewGraphWriter(dbClient),
+		graphReader: db.NewGraphReader(dbClient),
 	}
 }
 
@@ -152,4 +154,34 @@ func (h *Handler) indexRepository(repo *models.Repository) {
 	}
 
 	// Status will be updated to 'ready' by WriteIndexResult
+}
+
+// GetRepositoryFiles returns file tree with functions for a repository
+func (h *Handler) GetRepositoryFiles(c fiber.Ctx) error {
+	id := c.Params("id")
+	files, err := h.graphReader.GetFileTree(c.Context(), id)
+	if err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": err.Error()})
+	}
+	if files == nil {
+		files = []db.FileNode{}
+	}
+	return c.JSON(files)
+}
+
+// GetRepositoryGraph returns graph data for visualization
+func (h *Handler) GetRepositoryGraph(c fiber.Ctx) error {
+	id := c.Params("id")
+	graphType := c.Query("type", "structure") // "structure" or "calls"
+
+	// Validate graph type
+	if graphType != "structure" && graphType != "calls" {
+		return c.Status(400).JSON(fiber.Map{"error": "invalid graph type, must be 'structure' or 'calls'"})
+	}
+
+	graph, err := h.graphReader.GetGraph(c.Context(), id, graphType)
+	if err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": err.Error()})
+	}
+	return c.JSON(graph)
 }
