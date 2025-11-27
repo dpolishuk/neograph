@@ -73,7 +73,7 @@ func (h *Handler) CreateRepository(c fiber.Ctx) error {
 	repo := &models.Repository{
 		URL:           input.URL,
 		Name:          git.ExtractRepoName(input.URL),
-		DefaultBranch: input.Branch,
+		DefaultBranch: input.DefaultBranch,
 		Status:        "pending",
 	}
 

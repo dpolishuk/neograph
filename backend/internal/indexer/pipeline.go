@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"sync"
 
 	"github.com/dpolishuk/neograph/backend/internal/db"
 	"github.com/dpolishuk/neograph/backend/internal/models"
@@ -64,37 +63,21 @@ func (p *Pipeline) IndexDirectory(ctx context.Context, dirPath, repoID string) (
 		return nil, fmt.Errorf("failed to walk directory: %w", err)
 	}
 
-	// Process files concurrently (limited concurrency)
-	var wg sync.WaitGroup
-	sem := make(chan struct{}, 4) // Max 4 concurrent
-	var mu sync.Mutex
-
+	// Process files sequentially to avoid tree-sitter CGO concurrency issues
 	for _, relPath := range files {
-		wg.Add(1)
-		go func(relPath string) {
-			defer wg.Done()
-			sem <- struct{}{}
-			defer func() { <-sem }()
+		fullPath := filepath.Join(dirPath, relPath)
+		file, entities, err := p.processFile(ctx, fullPath, relPath, repoID)
 
-			fullPath := filepath.Join(dirPath, relPath)
-			file, entities, err := p.processFile(ctx, fullPath, relPath, repoID)
+		if err != nil {
+			result.Errors = append(result.Errors, fmt.Sprintf("%s: %v", relPath, err))
+			continue
+		}
 
-			mu.Lock()
-			defer mu.Unlock()
-
-			if err != nil {
-				result.Errors = append(result.Errors, fmt.Sprintf("%s: %v", relPath, err))
-				return
-			}
-
-			result.FilesProcessed++
-			result.Files = append(result.Files, file)
-			result.Entities = append(result.Entities, entities...)
-			result.EntitiesFound += len(entities)
-		}(relPath)
+		result.FilesProcessed++
+		result.Files = append(result.Files, file)
+		result.Entities = append(result.Entities, entities...)
+		result.EntitiesFound += len(entities)
 	}
-
-	wg.Wait()
 
 	return result, nil
 }

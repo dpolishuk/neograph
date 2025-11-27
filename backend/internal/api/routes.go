@@ -8,7 +8,7 @@ func SetupRoutes(app *fiber.App, h *Handler) {
 	api := app.Group("/api")
 
 	// Repositories
-	repos := api.Group("/repos")
+	repos := api.Group("/repositories")
 	repos.Get("/", h.ListRepositories)
 	repos.Post("/", h.CreateRepository)
 	repos.Get("/:id", h.GetRepository)

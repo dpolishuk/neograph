@@ -14,8 +14,8 @@ type Repository struct {
 }
 
 type CreateRepositoryInput struct {
-	URL    string `json:"url" validate:"required,url"`
-	Branch string `json:"branch"`
+	URL           string `json:"url" validate:"required,url"`
+	DefaultBranch string `json:"defaultBranch"`
 }
 
 type IndexResult struct {
