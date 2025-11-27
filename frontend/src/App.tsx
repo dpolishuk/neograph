@@ -3,6 +3,7 @@ import { useState } from 'react'
 import RepositoryListPage from './pages/RepositoryListPage'
 import RepositoryDetailPage from './pages/RepositoryDetailPage'
 import SearchPage from './pages/SearchPage'
+import WikiPage from './pages/WikiPage'
 import { CommandBar } from './components/CommandBar'
 import { ChatPanel } from './components/ChatPanel'
 import { Search, MessageSquare } from 'lucide-react'
@@ -56,6 +57,8 @@ function App() {
         <Routes>
           <Route path="/" element={<RepositoryListPage />} />
           <Route path="/repository/:id" element={<RepositoryDetailPage />} />
+          <Route path="/repository/:id/wiki" element={<WikiPage />} />
+          <Route path="/repository/:id/wiki/:slug" element={<WikiPage />} />
           <Route path="/search" element={<SearchPage />} />
         </Routes>
       </main>

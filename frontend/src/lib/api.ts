@@ -139,3 +139,69 @@ export const agentApi = {
     return data
   },
 }
+
+// Wiki types
+export interface WikiNavItem {
+  slug: string
+  title: string
+  order: number
+  children?: WikiNavItem[]
+}
+
+export interface WikiNavigation {
+  items: WikiNavItem[]
+}
+
+export interface TOCItem {
+  id: string
+  title: string
+  level: number
+}
+
+export interface Diagram {
+  id: string
+  title: string
+  code: string
+}
+
+export interface WikiPage {
+  id: string
+  repoId: string
+  slug: string
+  title: string
+  content: string
+  order: number
+  parentSlug?: string
+  diagrams?: Diagram[]
+  tableOfContents?: TOCItem[]
+  generatedAt?: string
+}
+
+export interface WikiStatus {
+  status: 'none' | 'generating' | 'ready' | 'error'
+  progress: number
+  currentPage?: string
+  totalPages?: number
+  errorMessage?: string
+}
+
+export const wikiApi = {
+  getNavigation: async (repoId: string): Promise<WikiNavigation> => {
+    const { data } = await api.get(`/api/repositories/${repoId}/wiki`)
+    return data
+  },
+
+  getPage: async (repoId: string, slug: string): Promise<WikiPage> => {
+    const { data } = await api.get(`/api/repositories/${repoId}/wiki/${slug}`)
+    return data
+  },
+
+  getStatus: async (repoId: string): Promise<WikiStatus> => {
+    const { data } = await api.get(`/api/repositories/${repoId}/wiki/status`)
+    return data
+  },
+
+  generate: async (repoId: string): Promise<void> => {
+    await api.post(`/api/repositories/${repoId}/wiki/generate`)
+  },
+}

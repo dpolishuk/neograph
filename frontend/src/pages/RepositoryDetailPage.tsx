@@ -1,7 +1,7 @@
 import { useParams, Link, useSearchParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { repositoryApi } from '@/lib/api'
-import { ArrowLeft } from 'lucide-react'
+import { ArrowLeft, Book } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useState, useEffect } from 'react'
 import { FileTree } from '@/components/FileTree'
@@ -46,6 +46,13 @@ export default function RepositoryDetailPage() {
           </Button>
         </Link>
         <h2 className="text-xl font-semibold">{repo.name}</h2>
+        <div className="ml-auto">
+          <Link to={`/repository/${id}/wiki`}>
+            <Button variant="outline" size="sm">
+              <Book className="w-4 h-4 mr-1" /> Wiki
+            </Button>
+          </Link>
+        </div>
       </div>
 
       <div className="flex-1 grid grid-cols-[280px_1fr_300px] gap-4 p-4 overflow-hidden">
