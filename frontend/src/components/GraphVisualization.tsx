@@ -11,6 +11,7 @@ interface GraphVisualizationProps {
   onTypeChange: (type: 'structure' | 'calls') => void
   selectedNode: string | null
   onNodeClick: (nodeId: string) => void
+  highlightedNodes?: string[]
 }
 
 interface GraphData {
@@ -34,9 +35,11 @@ export function GraphVisualization({
   onTypeChange,
   selectedNode,
   onNodeClick,
+  highlightedNodes = [],
 }: GraphVisualizationProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const networkRef = useRef<Network | null>(null)
+  const nodesDataSetRef = useRef<DataSet<any> | null>(null)
 
   const { data: graphData, isLoading } = useQuery<GraphData>({
     queryKey: ['repository-graph', repoId, type],
@@ -56,6 +59,8 @@ export function GraphVisualization({
         color: '#333333',
         size: 14,
       },
+      borderWidth: 2,
+      borderWidthSelected: 3,
     }))
 
     // Prepare edges
@@ -74,6 +79,9 @@ export function GraphVisualization({
     // Create vis-network datasets
     const nodesDS = new DataSet(nodes)
     const edgesDS = new DataSet(edges)
+
+    // Store reference for later updates
+    nodesDataSetRef.current = nodesDS
 
     // Destroy existing network if it exists
     if (networkRef.current) {
@@ -117,6 +125,7 @@ export function GraphVisualization({
         networkRef.current.destroy()
         networkRef.current = null
       }
+      nodesDataSetRef.current = null
     }
   }, [graphData, onNodeClick])
 
@@ -133,6 +142,40 @@ export function GraphVisualization({
       })
     }
   }, [selectedNode])
+
+  // Highlight search result nodes
+  useEffect(() => {
+    if (!nodesDataSetRef.current || !graphData) return
+
+    const highlightedSet = new Set(highlightedNodes)
+
+    // Update all nodes to either highlight or reset
+    graphData.nodes.forEach((n) => {
+      const isHighlighted = highlightedSet.has(n.id)
+      const update: any = {
+        id: n.id,
+      }
+
+      if (isHighlighted) {
+        // Highlight with orange border
+        update.borderWidth = 4
+        update.color = {
+          border: '#f97316', // orange-500
+          background: n.type === 'File' ? '#3b82f6' : '#22c55e',
+          highlight: {
+            border: '#ea580c', // orange-600
+            background: n.type === 'File' ? '#3b82f6' : '#22c55e',
+          },
+        }
+      } else {
+        // Reset to default
+        update.borderWidth = 2
+        update.color = n.type === 'File' ? '#3b82f6' : '#22c55e'
+      }
+
+      nodesDataSetRef.current?.update(update)
+    })
+  }, [highlightedNodes, graphData])
 
   return (
     <div className="bg-white rounded-lg border flex flex-col">

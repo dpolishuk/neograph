@@ -1,17 +1,27 @@
-import { useParams, Link } from 'react-router-dom'
+import { useParams, Link, useSearchParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { repositoryApi } from '@/lib/api'
 import { ArrowLeft } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { FileTree } from '@/components/FileTree'
 import { GraphVisualization } from '@/components/GraphVisualization'
 import { NodeDetailPanel } from '@/components/NodeDetailPanel'
 
 export default function RepositoryDetailPage() {
   const { id } = useParams<{ id: string }>()
+  const [searchParams] = useSearchParams()
   const [graphType, setGraphType] = useState<'structure' | 'calls'>('structure')
   const [selectedNode, setSelectedNode] = useState<string | null>(null)
+  const [highlightedNodes, setHighlightedNodes] = useState<string[]>([])
+
+  // Handle ?node= URL parameter for auto-select
+  useEffect(() => {
+    const nodeParam = searchParams.get('node')
+    if (nodeParam) {
+      setSelectedNode(nodeParam)
+    }
+  }, [searchParams])
 
   const { data: repo, isLoading } = useQuery({
     queryKey: ['repository', id],
@@ -39,13 +49,18 @@ export default function RepositoryDetailPage() {
       </div>
 
       <div className="flex-1 grid grid-cols-[280px_1fr_300px] gap-4 p-4 overflow-hidden">
-        <FileTree repoId={id!} onNodeSelect={setSelectedNode} />
+        <FileTree
+          repoId={id!}
+          onNodeSelect={setSelectedNode}
+          onSearchResults={setHighlightedNodes}
+        />
         <GraphVisualization
           repoId={id!}
           type={graphType}
           onTypeChange={setGraphType}
           selectedNode={selectedNode}
           onNodeClick={setSelectedNode}
+          highlightedNodes={highlightedNodes}
         />
         <NodeDetailPanel nodeId={selectedNode} repoId={id!} />
       </div>
