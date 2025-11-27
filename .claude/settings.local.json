@@ -21,7 +21,8 @@
       "Bash(go vet:*)",
       "Bash(gofmt:*)",
       "Bash(go list:*)",
-      "Bash(docker build:*)"
+      "Bash(docker build:*)",
+      "Bash(go test:*)"
     ]
   },
   "enabledMcpjsonServers": [
