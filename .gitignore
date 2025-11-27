@@ -1,0 +1,30 @@
+# Go
+backend/bin/
+backend/vendor/
+
+# Node
+frontend/node_modules/
+frontend/dist/
+
+# Python
+agents/__pycache__/
+agents/.venv/
+agents/*.egg-info/
+
+# Data
+data/repos/*
+data/neo4j/*
+!data/repos/.gitkeep
+!data/neo4j/.gitkeep
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# Env
+.env
+.env.local
+
+# OS
+.DS_Store
