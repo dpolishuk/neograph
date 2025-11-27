@@ -320,14 +320,10 @@ func (h *Handler) GetWikiNavigation(c fiber.Ctx) error {
 	return c.JSON(nav)
 }
 
-// GetWikiPage returns a specific wiki page
+// GetWikiPage returns a specific wiki page by slug
 func (h *Handler) GetWikiPage(c fiber.Ctx) error {
 	repoID := c.Params("id")
 	slug := c.Params("slug")
-
-	if slug == "" {
-		slug = "overview" // Default page
-	}
 
 	page, err := h.wikiReader.GetPage(c.Context(), repoID, slug)
 	if err != nil {
@@ -376,12 +372,25 @@ func (h *Handler) GetWikiStatus(c fiber.Ctx) error {
 	return c.JSON(status)
 }
 
-// generateWikiPages generates all wiki pages for a repository (stub for now)
+// generateWikiPages generates all wiki pages for a repository (placeholder implementation)
 func (h *Handler) generateWikiPages(repo *models.Repository) {
 	ctx := context.Background()
 
+	// Helper to set error status
+	setError := func(msg string) {
+		status := &models.WikiStatus{
+			Status:       "error",
+			Progress:     0,
+			ErrorMessage: msg,
+		}
+		h.wikiWriter.UpdateWikiStatus(ctx, repo.ID, status)
+	}
+
 	// Clear existing wiki
-	h.wikiWriter.ClearWiki(ctx, repo.ID)
+	if err := h.wikiWriter.ClearWiki(ctx, repo.ID); err != nil {
+		setError("failed to clear existing wiki: " + err.Error())
+		return
+	}
 
 	// Create placeholder overview page
 	overviewPage := &models.WikiPage{
@@ -393,7 +402,10 @@ func (h *Handler) generateWikiPages(repo *models.Repository) {
 		Content:    fmt.Sprintf("# %s\n\nDocumentation for %s.\n\n*Wiki generation coming soon...*", repo.Name, repo.Name),
 		Diagrams:   []models.Diagram{},
 	}
-	h.wikiWriter.WritePage(ctx, overviewPage)
+	if err := h.wikiWriter.WritePage(ctx, overviewPage); err != nil {
+		setError("failed to write overview page: " + err.Error())
+		return
+	}
 
 	// Update status to ready
 	status := &models.WikiStatus{
