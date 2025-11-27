@@ -8,7 +8,9 @@
       "Bash(mkdir:*)",
       "Bash(git add:*)",
       "Bash(git commit:*)",
-      "Bash(git init:*)"
+      "Bash(git init:*)",
+      "Skill(superpowers:subagent-driven-development)",
+      "Bash(find:*)"
     ]
   },
   "enabledMcpjsonServers": [
