@@ -9,6 +9,11 @@ import logging
 
 from .config import settings
 from .tools import get_tools, execute_tool
+from .agents import (
+    get_explorer_prompt,
+    get_analyzer_prompt,
+    get_doc_writer_prompt,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -52,53 +57,18 @@ def get_system_prompt(agent_type: str, repo_id: Optional[str] = None) -> str:
     Returns:
         System prompt string
     """
-    base_prompts = {
-        "explorer": """You are a code exploration agent with access to a Neo4j graph database.
-Your job is to help users find and understand code in their repositories.
-
-Available tools:
-- neo4j_query: Execute Cypher queries to explore the code graph
-- find_function: Search for functions by name pattern (supports wildcards)
-- blast_radius: Find all functions that depend on a given function
-
-When asked to find code:
-1. Use find_function to search for functions by name
-2. Use neo4j_query to explore relationships and structure
-3. Provide clear explanations with file paths and line numbers""",
-
-        "analyzer": """You are a code impact analysis agent.
-Your job is to analyze dependencies and potential blast radius of changes.
-
-Available tools:
-- blast_radius: Find all functions that depend on a given function
-- neo4j_query: Execute custom graph queries for deeper analysis
-- find_function: Locate specific functions
-
-When asked about dependencies:
-1. Use blast_radius to find impacted code
-2. Categorize by severity (direct vs transitive dependencies)
-3. Suggest testing priorities based on impact""",
-
-        "doc_writer": """You are a documentation generation agent.
-Your job is to create clear, comprehensive documentation for code.
-
-Available tools:
-- neo4j_query: Fetch code structure and relationships
-- find_function: Locate functions to document
-- blast_radius: Understand function dependencies and usage
-
-When asked to document:
-1. Fetch the code and its relationships
-2. Generate markdown documentation
-3. Include examples and usage patterns from the graph"""
+    # Map agent types to their respective prompt functions
+    prompt_functions = {
+        "explorer": get_explorer_prompt,
+        "analyzer": get_analyzer_prompt,
+        "doc_writer": get_doc_writer_prompt,
     }
 
-    prompt = base_prompts.get(agent_type, base_prompts["explorer"])
+    # Get the appropriate prompt function, default to explorer
+    prompt_func = prompt_functions.get(agent_type, get_explorer_prompt)
 
-    if repo_id:
-        prompt += f"\n\nCurrently exploring repository: {repo_id}"
-
-    return prompt
+    # Generate prompt with optional repo_id
+    return prompt_func(repo_id=repo_id)
 
 
 @app.post("/chat", response_model=ChatResponse)
