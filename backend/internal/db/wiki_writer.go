@@ -3,6 +3,7 @@ package db
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"time"
 
 	"github.com/dpolishuk/neograph/backend/internal/models"
@@ -27,7 +28,10 @@ func (w *WikiWriter) WritePage(ctx context.Context, page *models.WikiPage) error
 
 	_, err := w.client.ExecuteWrite(ctx, func(tx neo4j.ManagedTransaction) (any, error) {
 		// Serialize diagrams to JSON
-		diagramsJSON, _ := json.Marshal(page.Diagrams)
+		diagramsJSON, err := json.Marshal(page.Diagrams)
+		if err != nil {
+			return nil, fmt.Errorf("failed to marshal diagrams: %w", err)
+		}
 
 		query := `
 			MATCH (r:Repository {id: $repoId})
@@ -41,7 +45,7 @@ func (w *WikiWriter) WritePage(ctx context.Context, page *models.WikiPage) error
 			    w.generatedAt = datetime()
 			MERGE (r)-[:HAS_WIKI]->(w)
 		`
-		_, err := tx.Run(ctx, query, map[string]any{
+		_, err = tx.Run(ctx, query, map[string]any{
 			"id":         page.ID,
 			"repoId":     page.RepoID,
 			"slug":       page.Slug,
