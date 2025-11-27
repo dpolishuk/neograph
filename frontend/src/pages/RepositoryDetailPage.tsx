@@ -3,9 +3,15 @@ import { useQuery } from '@tanstack/react-query'
 import { repositoryApi } from '@/lib/api'
 import { ArrowLeft } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { useState } from 'react'
+import { FileTree } from '@/components/FileTree'
+import { GraphVisualization } from '@/components/GraphVisualization'
+import { NodeDetailPanel } from '@/components/NodeDetailPanel'
 
 export default function RepositoryDetailPage() {
   const { id } = useParams<{ id: string }>()
+  const [graphType, setGraphType] = useState<'structure' | 'calls'>('structure')
+  const [selectedNode, setSelectedNode] = useState<string | null>(null)
 
   const { data: repo, isLoading } = useQuery({
     queryKey: ['repository', id],
@@ -22,8 +28,8 @@ export default function RepositoryDetailPage() {
   }
 
   return (
-    <div>
-      <div className="flex items-center gap-4 mb-6">
+    <div className="h-screen flex flex-col">
+      <div className="flex items-center gap-4 p-4 border-b bg-white">
         <Link to="/">
           <Button variant="ghost" size="sm">
             <ArrowLeft className="w-4 h-4 mr-1" /> Back
@@ -32,22 +38,16 @@ export default function RepositoryDetailPage() {
         <h2 className="text-xl font-semibold">{repo.name}</h2>
       </div>
 
-      <div className="bg-white rounded-lg border p-6">
-        <p className="text-gray-600 mb-4">Repository detail view - Coming soon!</p>
-        <dl className="space-y-2 text-sm">
-          <div>
-            <dt className="font-medium text-gray-500">URL:</dt>
-            <dd className="text-gray-900">{repo.url}</dd>
-          </div>
-          <div>
-            <dt className="font-medium text-gray-500">Branch:</dt>
-            <dd className="text-gray-900">{repo.defaultBranch}</dd>
-          </div>
-          <div>
-            <dt className="font-medium text-gray-500">Status:</dt>
-            <dd className="text-gray-900">{repo.status}</dd>
-          </div>
-        </dl>
+      <div className="flex-1 grid grid-cols-[280px_1fr_300px] gap-4 p-4 overflow-hidden">
+        <FileTree repoId={id!} onNodeSelect={setSelectedNode} />
+        <GraphVisualization
+          repoId={id!}
+          type={graphType}
+          onTypeChange={setGraphType}
+          selectedNode={selectedNode}
+          onNodeClick={setSelectedNode}
+        />
+        <NodeDetailPanel nodeId={selectedNode} repoId={id!} />
       </div>
     </div>
   )
