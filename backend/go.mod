@@ -2,7 +2,10 @@ module github.com/dpolishuk/neograph/backend
 
 go 1.25.0
 
-require github.com/gofiber/fiber/v3 v3.0.0-rc.3
+require (
+	github.com/gofiber/fiber/v3 v3.0.0-rc.3
+	github.com/neo4j/neo4j-go-driver/v5 v5.28.4
+)
 
 require (
 	github.com/andybalholm/brotli v1.2.0 // indirect
