@@ -3,8 +3,7 @@ FROM golang:1.22-alpine AS builder
 
 WORKDIR /build
 
-# Install build dependencies
-RUN apk add --no-cache gcc musl-dev
+# No build dependencies needed with CGO_ENABLED=0
 
 # Copy go mod files
 COPY go.mod go.sum ./

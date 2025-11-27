@@ -3,8 +3,8 @@ package main
 import (
 	"log"
 
-	"github.com/gofiber/fiber/v3"
 	"github.com/dpolishuk/neograph/backend/internal/config"
+	"github.com/gofiber/fiber/v3"
 )
 
 func main() {
@@ -17,7 +17,7 @@ func main() {
 	// Health check
 	app.Get("/health", func(c fiber.Ctx) error {
 		return c.JSON(fiber.Map{
-			"status": "ok",
+			"status":  "ok",
 			"service": "neograph-backend",
 		})
 	})

@@ -10,7 +10,18 @@
       "Bash(git commit:*)",
       "Bash(git init:*)",
       "Skill(superpowers:subagent-driven-development)",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "Bash(go mod init:*)",
+      "Bash(go get:*)",
+      "Bash(go mod tidy:*)",
+      "Bash(go build:*)",
+      "Bash(curl:*)",
+      "Bash(tree:*)",
+      "Bash(go mod verify:*)",
+      "Bash(go vet:*)",
+      "Bash(gofmt:*)",
+      "Bash(go list:*)",
+      "Bash(docker build:*)"
     ]
   },
   "enabledMcpjsonServers": [
