@@ -298,3 +298,136 @@ func (r *GraphReader) GetGraph(ctx context.Context, repoID, graphType string) (*
 	}
 	return result.(*GraphData), nil
 }
+
+// NodeDetail represents detailed information about a node
+type NodeDetail struct {
+	ID        string   `json:"id"`
+	Name      string   `json:"name"`
+	Type      string   `json:"type"` // "File", "Function", or "Method"
+	Signature string   `json:"signature,omitempty"`
+	FilePath  string   `json:"filePath,omitempty"`
+	StartLine int      `json:"startLine,omitempty"`
+	EndLine   int      `json:"endLine,omitempty"`
+	Calls     []string `json:"calls,omitempty"`     // names of functions this node calls
+	CalledBy  []string `json:"calledBy,omitempty"`  // names of functions that call this node
+}
+
+// GetNodeDetail returns detailed information about a specific node
+func (r *GraphReader) GetNodeDetail(ctx context.Context, repoID, nodeID string) (*NodeDetail, error) {
+	result, err := r.client.ExecuteRead(ctx, func(tx neo4j.ManagedTransaction) (any, error) {
+		// First, get the node details
+		query := `
+			MATCH (r:Repository {id: $repoId})-[:CONTAINS*1..2]->(node)
+			WHERE node.id = $nodeId
+			OPTIONAL MATCH (node)-[:CALLS]->(target:Function|Method)
+			OPTIONAL MATCH (caller:Function|Method)-[:CALLS]->(node)
+			RETURN node,
+			       labels(node) as labels,
+			       collect(DISTINCT target.name) as calls,
+			       collect(DISTINCT caller.name) as calledBy
+		`
+		records, err := tx.Run(ctx, query, map[string]any{
+			"repoId": repoID,
+			"nodeId": nodeID,
+		})
+		if err != nil {
+			return nil, err
+		}
+
+		if !records.Next(ctx) {
+			return nil, nil // Node not found
+		}
+
+		rec := records.Record()
+
+		// Get node
+		nodeRaw, _ := rec.Get("node")
+		if nodeRaw == nil {
+			return nil, nil
+		}
+
+		node := nodeRaw.(neo4j.Node)
+		props := node.GetProperties()
+
+		// Get labels
+		labelsRaw, _ := rec.Get("labels")
+		labels := labelsRaw.([]any)
+
+		var nodeType string
+		for _, label := range labels {
+			labelStr := label.(string)
+			if labelStr == "File" || labelStr == "Function" || labelStr == "Method" {
+				nodeType = labelStr
+				break
+			}
+		}
+
+		detail := &NodeDetail{
+			ID:   props["id"].(string),
+			Type: nodeType,
+		}
+
+		// Set name based on type
+		if nameVal, ok := props["name"]; ok && nameVal != nil {
+			detail.Name = nameVal.(string)
+		} else if pathVal, ok := props["path"]; ok && pathVal != nil {
+			detail.Name = pathVal.(string)
+		}
+
+		// Set optional fields based on node type
+		if nodeType == "Function" || nodeType == "Method" {
+			if sig, ok := props["signature"]; ok && sig != nil {
+				detail.Signature = sig.(string)
+			}
+			if fp, ok := props["filePath"]; ok && fp != nil {
+				detail.FilePath = fp.(string)
+			}
+			if sl, ok := props["startLine"]; ok && sl != nil {
+				detail.StartLine = int(sl.(int64))
+			}
+			if el, ok := props["endLine"]; ok && el != nil {
+				detail.EndLine = int(el.(int64))
+			}
+
+			// Get calls
+			callsRaw, _ := rec.Get("calls")
+			if callsRaw != nil {
+				callsList := callsRaw.([]any)
+				for _, call := range callsList {
+					if call != nil {
+						detail.Calls = append(detail.Calls, call.(string))
+					}
+				}
+			}
+
+			// Get calledBy
+			calledByRaw, _ := rec.Get("calledBy")
+			if calledByRaw != nil {
+				calledByList := calledByRaw.([]any)
+				for _, caller := range calledByList {
+					if caller != nil {
+						detail.CalledBy = append(detail.CalledBy, caller.(string))
+					}
+				}
+			}
+		} else if nodeType == "File" {
+			if path, ok := props["path"]; ok && path != nil {
+				detail.FilePath = path.(string)
+			}
+		}
+
+		if err := records.Err(); err != nil {
+			return nil, err
+		}
+
+		return detail, nil
+	})
+
+	if err != nil {
+		return nil, err
+	}
+	if result == nil {
+		return nil, nil
+	}
+	return result.(*NodeDetail), nil
+}

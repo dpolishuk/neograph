@@ -72,4 +72,21 @@ export const repositoryApi = {
     const { data } = await api.get(`/api/repositories/${id}/graph?type=${type}`)
     return data
   },
+
+  getNodeDetail: async (repoId: string, nodeId: string): Promise<NodeDetail> => {
+    const { data } = await api.get(`/api/repositories/${repoId}/nodes/${nodeId}`)
+    return data
+  },
+}
+
+export interface NodeDetail {
+  id: string
+  name: string
+  type: 'File' | 'Function' | 'Method'
+  signature?: string
+  filePath?: string
+  startLine?: number
+  endLine?: number
+  calls?: string[]
+  calledBy?: string[]
 }

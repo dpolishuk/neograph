@@ -185,3 +185,18 @@ func (h *Handler) GetRepositoryGraph(c fiber.Ctx) error {
 	}
 	return c.JSON(graph)
 }
+
+// GetNodeDetail returns detailed information about a specific node
+func (h *Handler) GetNodeDetail(c fiber.Ctx) error {
+	repoID := c.Params("id")
+	nodeID := c.Params("nodeId")
+
+	nodeDetail, err := h.graphReader.GetNodeDetail(c.Context(), repoID, nodeID)
+	if err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": err.Error()})
+	}
+	if nodeDetail == nil {
+		return c.Status(404).JSON(fiber.Map{"error": "node not found"})
+	}
+	return c.JSON(nodeDetail)
+}
