@@ -16,15 +16,6 @@ type Pipeline struct {
 	extractor *Extractor
 }
 
-type IndexResult struct {
-	RepoID         string
-	FilesProcessed int
-	EntitiesFound  int
-	Errors         []string
-	Files          []*models.File
-	Entities       []CodeEntity
-}
-
 func NewPipeline(dbClient *db.Neo4jClient) *Pipeline {
 	return &Pipeline{
 		dbClient:  dbClient,
@@ -36,8 +27,8 @@ func (p *Pipeline) Close() {
 	p.extractor.Close()
 }
 
-func (p *Pipeline) IndexDirectory(ctx context.Context, dirPath, repoID string) (*IndexResult, error) {
-	result := &IndexResult{
+func (p *Pipeline) IndexDirectory(ctx context.Context, dirPath, repoID string) (*models.IndexResult, error) {
+	result := &models.IndexResult{
 		RepoID: repoID,
 	}
 
@@ -108,7 +99,7 @@ func (p *Pipeline) IndexDirectory(ctx context.Context, dirPath, repoID string) (
 	return result, nil
 }
 
-func (p *Pipeline) processFile(ctx context.Context, fullPath, relPath, repoID string) (*models.File, []CodeEntity, error) {
+func (p *Pipeline) processFile(ctx context.Context, fullPath, relPath, repoID string) (*models.File, []models.CodeEntity, error) {
 	content, err := os.ReadFile(fullPath)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to read file: %w", err)

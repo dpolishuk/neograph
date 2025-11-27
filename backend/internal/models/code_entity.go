@@ -20,6 +20,7 @@ type CodeEntity struct {
 	FilePath  string         `json:"filePath"`
 	FileID    string         `json:"fileId"`
 	RepoID    string         `json:"repoId"`
+	Content   string         `json:"content,omitempty"`
 
 	// For embeddings
 	NLDescription string    `json:"nlDescription,omitempty"`

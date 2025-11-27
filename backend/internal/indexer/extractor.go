@@ -5,22 +5,10 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/dpolishuk/neograph/backend/internal/models"
 	"github.com/dpolishuk/neograph/backend/pkg/treesitter"
 	sitter "github.com/smacker/go-tree-sitter"
 )
-
-// CodeEntity represents a code entity (function, class, method, etc.)
-type CodeEntity struct {
-	Type      string   // "function", "method", "class", "interface", etc.
-	Name      string   // Name of the entity
-	Signature string   // Full signature (e.g., "func myFunc(a int) error")
-	Docstring string   // Documentation/comments
-	StartLine int      // Starting line number (1-indexed)
-	EndLine   int      // Ending line number (1-indexed)
-	FilePath  string   // Path to the source file
-	Calls     []string // List of function/method calls made within this entity
-	Content   string   // Full source code content of the entity
-}
 
 // Extractor wraps the tree-sitter parser for code entity extraction
 type Extractor struct {
@@ -40,7 +28,7 @@ func (e *Extractor) Close() {
 }
 
 // Extract extracts code entities from the given source code
-func (e *Extractor) Extract(ctx context.Context, content []byte, language string, filePath string) ([]CodeEntity, error) {
+func (e *Extractor) Extract(ctx context.Context, content []byte, language string, filePath string) ([]models.CodeEntity, error) {
 	tree, err := e.parser.Parse(ctx, content, language)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse code: %w", err)
@@ -66,8 +54,8 @@ func (e *Extractor) Extract(ctx context.Context, content []byte, language string
 }
 
 // extractGo extracts entities from Go code
-func (e *Extractor) extractGo(root *sitter.Node, content []byte, filePath string) []CodeEntity {
-	var entities []CodeEntity
+func (e *Extractor) extractGo(root *sitter.Node, content []byte, filePath string) []models.CodeEntity {
+	var entities []models.CodeEntity
 	e.traverseNode(root, content, func(node *sitter.Node) {
 		nodeType := node.Type()
 
@@ -107,7 +95,7 @@ func (e *Extractor) extractGo(root *sitter.Node, content []byte, filePath string
 }
 
 // extractGoFunction extracts a Go function or method
-func (e *Extractor) extractGoFunction(node *sitter.Node, content []byte, filePath string, entityType string) *CodeEntity {
+func (e *Extractor) extractGoFunction(node *sitter.Node, content []byte, filePath string, entityType string) *models.CodeEntity {
 	nameNode := node.ChildByFieldName("name")
 	if nameNode == nil {
 		return nil
@@ -118,8 +106,15 @@ func (e *Extractor) extractGoFunction(node *sitter.Node, content []byte, filePat
 	docstring := getPrecedingComment(node, content)
 	calls := extractCalls(node, content)
 
-	return &CodeEntity{
-		Type:      entityType,
+	var entityTypeCode models.CodeEntityType
+	if entityType == "function" {
+		entityTypeCode = models.EntityFunction
+	} else {
+		entityTypeCode = models.EntityMethod
+	}
+
+	return &models.CodeEntity{
+		Type:      entityTypeCode,
 		Name:      name,
 		Signature: signature,
 		Docstring: docstring,
@@ -132,7 +127,7 @@ func (e *Extractor) extractGoFunction(node *sitter.Node, content []byte, filePat
 }
 
 // extractGoStruct extracts a Go struct declaration
-func (e *Extractor) extractGoStruct(declNode *sitter.Node, typeSpec *sitter.Node, content []byte, filePath string) *CodeEntity {
+func (e *Extractor) extractGoStruct(declNode *sitter.Node, typeSpec *sitter.Node, content []byte, filePath string) *models.CodeEntity {
 	// Find the type_identifier within the type_spec
 	var nameNode *sitter.Node
 	for i := 0; i < int(typeSpec.NamedChildCount()); i++ {
@@ -151,8 +146,8 @@ func (e *Extractor) extractGoStruct(declNode *sitter.Node, typeSpec *sitter.Node
 	signature := getNodeContent(declNode, content)
 	docstring := getPrecedingComment(declNode, content)
 
-	return &CodeEntity{
-		Type:      "class",
+	return &models.CodeEntity{
+		Type:      models.EntityClass,
 		Name:      name,
 		Signature: signature,
 		Docstring: docstring,
@@ -165,8 +160,8 @@ func (e *Extractor) extractGoStruct(declNode *sitter.Node, typeSpec *sitter.Node
 }
 
 // extractPython extracts entities from Python code
-func (e *Extractor) extractPython(root *sitter.Node, content []byte, filePath string) []CodeEntity {
-	var entities []CodeEntity
+func (e *Extractor) extractPython(root *sitter.Node, content []byte, filePath string) []models.CodeEntity {
+	var entities []models.CodeEntity
 	e.traverseNode(root, content, func(node *sitter.Node) {
 		nodeType := node.Type()
 
@@ -203,7 +198,7 @@ func (e *Extractor) extractPython(root *sitter.Node, content []byte, filePath st
 }
 
 // extractPythonFunction extracts a Python function or method
-func (e *Extractor) extractPythonFunction(node *sitter.Node, content []byte, filePath string, entityType string) *CodeEntity {
+func (e *Extractor) extractPythonFunction(node *sitter.Node, content []byte, filePath string, entityType string) *models.CodeEntity {
 	nameNode := node.ChildByFieldName("name")
 	if nameNode == nil {
 		return nil
@@ -214,8 +209,15 @@ func (e *Extractor) extractPythonFunction(node *sitter.Node, content []byte, fil
 	docstring := getPythonDocstring(node, content)
 	calls := extractCalls(node, content)
 
-	return &CodeEntity{
-		Type:      entityType,
+	var entityTypeCode models.CodeEntityType
+	if entityType == "function" {
+		entityTypeCode = models.EntityFunction
+	} else {
+		entityTypeCode = models.EntityMethod
+	}
+
+	return &models.CodeEntity{
+		Type:      entityTypeCode,
 		Name:      name,
 		Signature: signature,
 		Docstring: docstring,
@@ -228,7 +230,7 @@ func (e *Extractor) extractPythonFunction(node *sitter.Node, content []byte, fil
 }
 
 // extractPythonClass extracts a Python class
-func (e *Extractor) extractPythonClass(node *sitter.Node, content []byte, filePath string) *CodeEntity {
+func (e *Extractor) extractPythonClass(node *sitter.Node, content []byte, filePath string) *models.CodeEntity {
 	nameNode := node.ChildByFieldName("name")
 	if nameNode == nil {
 		return nil
@@ -238,8 +240,8 @@ func (e *Extractor) extractPythonClass(node *sitter.Node, content []byte, filePa
 	signature := e.getPythonSignature(node, content)
 	docstring := getPythonDocstring(node, content)
 
-	return &CodeEntity{
-		Type:      "class",
+	return &models.CodeEntity{
+		Type:      models.EntityClass,
 		Name:      name,
 		Signature: signature,
 		Docstring: docstring,
@@ -262,8 +264,8 @@ func (e *Extractor) getPythonSignature(node *sitter.Node, content []byte) string
 }
 
 // extractTypeScript extracts entities from TypeScript/JavaScript code
-func (e *Extractor) extractTypeScript(root *sitter.Node, content []byte, filePath string) []CodeEntity {
-	var entities []CodeEntity
+func (e *Extractor) extractTypeScript(root *sitter.Node, content []byte, filePath string) []models.CodeEntity {
+	var entities []models.CodeEntity
 	e.traverseNode(root, content, func(node *sitter.Node) {
 		nodeType := node.Type()
 
@@ -289,7 +291,7 @@ func (e *Extractor) extractTypeScript(root *sitter.Node, content []byte, filePat
 }
 
 // extractTSFunction extracts a TypeScript/JavaScript function
-func (e *Extractor) extractTSFunction(node *sitter.Node, content []byte, filePath string, entityType string) *CodeEntity {
+func (e *Extractor) extractTSFunction(node *sitter.Node, content []byte, filePath string, entityType string) *models.CodeEntity {
 	nameNode := node.ChildByFieldName("name")
 	if nameNode == nil {
 		return nil
@@ -300,8 +302,15 @@ func (e *Extractor) extractTSFunction(node *sitter.Node, content []byte, filePat
 	docstring := getPrecedingComment(node, content)
 	calls := extractCalls(node, content)
 
-	return &CodeEntity{
-		Type:      entityType,
+	var entityTypeCode models.CodeEntityType
+	if entityType == "function" {
+		entityTypeCode = models.EntityFunction
+	} else {
+		entityTypeCode = models.EntityMethod
+	}
+
+	return &models.CodeEntity{
+		Type:      entityTypeCode,
 		Name:      name,
 		Signature: signature,
 		Docstring: docstring,
@@ -314,7 +323,7 @@ func (e *Extractor) extractTSFunction(node *sitter.Node, content []byte, filePat
 }
 
 // extractTSClass extracts a TypeScript/JavaScript class
-func (e *Extractor) extractTSClass(node *sitter.Node, content []byte, filePath string) *CodeEntity {
+func (e *Extractor) extractTSClass(node *sitter.Node, content []byte, filePath string) *models.CodeEntity {
 	nameNode := node.ChildByFieldName("name")
 	if nameNode == nil {
 		return nil
@@ -324,8 +333,8 @@ func (e *Extractor) extractTSClass(node *sitter.Node, content []byte, filePath s
 	signature := e.getTSSignature(node, content)
 	docstring := getPrecedingComment(node, content)
 
-	return &CodeEntity{
-		Type:      "class",
+	return &models.CodeEntity{
+		Type:      models.EntityClass,
 		Name:      name,
 		Signature: signature,
 		Docstring: docstring,
@@ -338,7 +347,7 @@ func (e *Extractor) extractTSClass(node *sitter.Node, content []byte, filePath s
 }
 
 // extractTSMethod extracts a TypeScript/JavaScript method
-func (e *Extractor) extractTSMethod(node *sitter.Node, content []byte, filePath string) *CodeEntity {
+func (e *Extractor) extractTSMethod(node *sitter.Node, content []byte, filePath string) *models.CodeEntity {
 	nameNode := node.ChildByFieldName("name")
 	if nameNode == nil {
 		return nil
@@ -349,8 +358,8 @@ func (e *Extractor) extractTSMethod(node *sitter.Node, content []byte, filePath 
 	docstring := getPrecedingComment(node, content)
 	calls := extractCalls(node, content)
 
-	return &CodeEntity{
-		Type:      "method",
+	return &models.CodeEntity{
+		Type:      models.EntityMethod,
 		Name:      name,
 		Signature: signature,
 		Docstring: docstring,
@@ -387,8 +396,8 @@ func (e *Extractor) getTSSignature(node *sitter.Node, content []byte) string {
 }
 
 // extractJava extracts entities from Java code
-func (e *Extractor) extractJava(root *sitter.Node, content []byte, filePath string) []CodeEntity {
-	var entities []CodeEntity
+func (e *Extractor) extractJava(root *sitter.Node, content []byte, filePath string) []models.CodeEntity {
+	var entities []models.CodeEntity
 	e.traverseNode(root, content, func(node *sitter.Node) {
 		nodeType := node.Type()
 
@@ -414,7 +423,7 @@ func (e *Extractor) extractJava(root *sitter.Node, content []byte, filePath stri
 }
 
 // extractJavaMethod extracts a Java method
-func (e *Extractor) extractJavaMethod(node *sitter.Node, content []byte, filePath string) *CodeEntity {
+func (e *Extractor) extractJavaMethod(node *sitter.Node, content []byte, filePath string) *models.CodeEntity {
 	nameNode := node.ChildByFieldName("name")
 	if nameNode == nil {
 		return nil
@@ -425,8 +434,8 @@ func (e *Extractor) extractJavaMethod(node *sitter.Node, content []byte, filePat
 	docstring := getPrecedingComment(node, content)
 	calls := extractCalls(node, content)
 
-	return &CodeEntity{
-		Type:      "method",
+	return &models.CodeEntity{
+		Type:      models.EntityMethod,
 		Name:      name,
 		Signature: signature,
 		Docstring: docstring,
@@ -439,7 +448,7 @@ func (e *Extractor) extractJavaMethod(node *sitter.Node, content []byte, filePat
 }
 
 // extractJavaClass extracts a Java class or interface
-func (e *Extractor) extractJavaClass(node *sitter.Node, content []byte, filePath string, entityType string) *CodeEntity {
+func (e *Extractor) extractJavaClass(node *sitter.Node, content []byte, filePath string, entityType string) *models.CodeEntity {
 	nameNode := node.ChildByFieldName("name")
 	if nameNode == nil {
 		return nil
@@ -449,8 +458,9 @@ func (e *Extractor) extractJavaClass(node *sitter.Node, content []byte, filePath
 	signature := e.getJavaSignature(node, content)
 	docstring := getPrecedingComment(node, content)
 
-	return &CodeEntity{
-		Type:      entityType,
+	// For Java, both class and interface map to EntityClass
+	return &models.CodeEntity{
+		Type:      models.EntityClass,
 		Name:      name,
 		Signature: signature,
 		Docstring: docstring,
@@ -487,8 +497,8 @@ func (e *Extractor) getJavaSignature(node *sitter.Node, content []byte) string {
 }
 
 // extractKotlin extracts entities from Kotlin code
-func (e *Extractor) extractKotlin(root *sitter.Node, content []byte, filePath string) []CodeEntity {
-	var entities []CodeEntity
+func (e *Extractor) extractKotlin(root *sitter.Node, content []byte, filePath string) []models.CodeEntity {
+	var entities []models.CodeEntity
 	e.traverseNode(root, content, func(node *sitter.Node) {
 		nodeType := node.Type()
 
@@ -509,7 +519,7 @@ func (e *Extractor) extractKotlin(root *sitter.Node, content []byte, filePath st
 }
 
 // extractKotlinFunction extracts a Kotlin function
-func (e *Extractor) extractKotlinFunction(node *sitter.Node, content []byte, filePath string) *CodeEntity {
+func (e *Extractor) extractKotlinFunction(node *sitter.Node, content []byte, filePath string) *models.CodeEntity {
 	// Find simple_identifier child
 	var nameNode *sitter.Node
 	for i := 0; i < int(node.NamedChildCount()); i++ {
@@ -540,8 +550,15 @@ func (e *Extractor) extractKotlinFunction(node *sitter.Node, content []byte, fil
 	docstring := getPrecedingComment(node, content)
 	calls := extractCalls(node, content)
 
-	return &CodeEntity{
-		Type:      entityType,
+	var entityTypeCode models.CodeEntityType
+	if entityType == "function" {
+		entityTypeCode = models.EntityFunction
+	} else {
+		entityTypeCode = models.EntityMethod
+	}
+
+	return &models.CodeEntity{
+		Type:      entityTypeCode,
 		Name:      name,
 		Signature: signature,
 		Docstring: docstring,
@@ -554,7 +571,7 @@ func (e *Extractor) extractKotlinFunction(node *sitter.Node, content []byte, fil
 }
 
 // extractKotlinClass extracts a Kotlin class
-func (e *Extractor) extractKotlinClass(node *sitter.Node, content []byte, filePath string) *CodeEntity {
+func (e *Extractor) extractKotlinClass(node *sitter.Node, content []byte, filePath string) *models.CodeEntity {
 	// Find type_identifier child
 	var nameNode *sitter.Node
 	for i := 0; i < int(node.NamedChildCount()); i++ {
@@ -573,8 +590,8 @@ func (e *Extractor) extractKotlinClass(node *sitter.Node, content []byte, filePa
 	signature := e.getKotlinSignature(node, content)
 	docstring := getPrecedingComment(node, content)
 
-	return &CodeEntity{
-		Type:      "class",
+	return &models.CodeEntity{
+		Type:      models.EntityClass,
 		Name:      name,
 		Signature: signature,
 		Docstring: docstring,

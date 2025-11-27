@@ -17,3 +17,12 @@ type CreateRepositoryInput struct {
 	URL    string `json:"url" validate:"required,url"`
 	Branch string `json:"branch"`
 }
+
+type IndexResult struct {
+	RepoID         string
+	FilesProcessed int
+	EntitiesFound  int
+	Errors         []string
+	Files          []*File
+	Entities       []CodeEntity
+}
