@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { repositoryApi, Repository } from '@/lib/api'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
@@ -34,34 +35,41 @@ function RepositoryCard({ repo }: { repo: Repository }) {
   })
 
   return (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-        <CardTitle className="text-base font-medium">{repo.name}</CardTitle>
-        <StatusBadge status={repo.status} />
-      </CardHeader>
-      <CardContent>
-        <p className="text-sm text-gray-500 mb-3 truncate">{repo.url}</p>
+    <Card className="hover:shadow-md transition-shadow">
+      <Link to={`/repository/${repo.id}`}>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle className="text-base font-medium">{repo.name}</CardTitle>
+          <StatusBadge status={repo.status} />
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-gray-500 mb-3 truncate">{repo.url}</p>
 
-        <div className="flex gap-4 text-sm text-gray-600 mb-4">
-          <span className="flex items-center gap-1">
-            <GitBranch className="w-4 h-4" />
-            {repo.defaultBranch}
-          </span>
-          <span className="flex items-center gap-1">
-            <FileCode className="w-4 h-4" />
-            {repo.filesCount} files
-          </span>
-          <span className="flex items-center gap-1">
-            <Box className="w-4 h-4" />
-            {repo.functionsCount} functions
-          </span>
-        </div>
+          <div className="flex gap-4 text-sm text-gray-600 mb-4">
+            <span className="flex items-center gap-1">
+              <GitBranch className="w-4 h-4" />
+              {repo.defaultBranch}
+            </span>
+            <span className="flex items-center gap-1">
+              <FileCode className="w-4 h-4" />
+              {repo.filesCount} files
+            </span>
+            <span className="flex items-center gap-1">
+              <Box className="w-4 h-4" />
+              {repo.functionsCount} functions
+            </span>
+          </div>
+        </CardContent>
+      </Link>
 
+      <CardContent className="pt-0">
         <div className="flex gap-2">
           <Button
             variant="outline"
             size="sm"
-            onClick={() => reindexMutation.mutate()}
+            onClick={(e) => {
+              e.preventDefault()
+              reindexMutation.mutate()
+            }}
             disabled={reindexMutation.isPending || repo.status === 'indexing'}
           >
             <RefreshCw className={`w-4 h-4 mr-1 ${reindexMutation.isPending ? 'animate-spin' : ''}`} />
@@ -70,7 +78,8 @@ function RepositoryCard({ repo }: { repo: Repository }) {
           <Button
             variant="destructive"
             size="sm"
-            onClick={() => {
+            onClick={(e) => {
+              e.preventDefault()
               if (confirm('Delete this repository?')) {
                 deleteMutation.mutate()
               }

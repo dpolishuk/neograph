@@ -1,5 +1,6 @@
-import { AddRepositoryForm } from '@/components/AddRepositoryForm'
-import { RepositoryList } from '@/components/RepositoryList'
+import { Routes, Route } from 'react-router-dom'
+import RepositoryListPage from './pages/RepositoryListPage'
+import RepositoryDetailPage from './pages/RepositoryDetailPage'
 
 function App() {
   return (
@@ -12,12 +13,10 @@ function App() {
       </header>
 
       <main className="max-w-7xl mx-auto px-4 py-8">
-        <div className="flex justify-between items-center mb-6">
-          <h2 className="text-xl font-semibold">Repositories</h2>
-          <AddRepositoryForm />
-        </div>
-
-        <RepositoryList />
+        <Routes>
+          <Route path="/" element={<RepositoryListPage />} />
+          <Route path="/repository/:id" element={<RepositoryDetailPage />} />
+        </Routes>
       </main>
     </div>
   )
