@@ -1,11 +1,22 @@
 import { Routes, Route, Link } from 'react-router-dom'
+import { useState } from 'react'
 import RepositoryListPage from './pages/RepositoryListPage'
 import RepositoryDetailPage from './pages/RepositoryDetailPage'
 import SearchPage from './pages/SearchPage'
 import { CommandBar } from './components/CommandBar'
-import { Search } from 'lucide-react'
+import { ChatPanel } from './components/ChatPanel'
+import { Search, MessageSquare } from 'lucide-react'
+import { Button } from './components/ui/button'
 
 function App() {
+  const [chatOpen, setChatOpen] = useState(false)
+  const [chatInitialMessage, setChatInitialMessage] = useState<string | undefined>()
+
+  const handleOpenChat = (initialMessage?: string) => {
+    setChatInitialMessage(initialMessage)
+    setChatOpen(true)
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
       <header className="bg-white border-b">
@@ -27,6 +38,15 @@ function App() {
                 <Search className="w-4 h-4" />
                 <span>Search</span>
               </Link>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => handleOpenChat()}
+                className="flex items-center gap-2"
+              >
+                <MessageSquare className="w-4 h-4" />
+                <span>Chat</span>
+              </Button>
             </nav>
           </div>
         </div>
@@ -40,7 +60,12 @@ function App() {
         </Routes>
       </main>
 
-      <CommandBar />
+      <CommandBar onOpenChat={handleOpenChat} />
+      <ChatPanel
+        open={chatOpen}
+        onClose={() => setChatOpen(false)}
+        initialMessage={chatInitialMessage}
+      />
     </div>
   )
 }
