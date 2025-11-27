@@ -5,6 +5,7 @@ import (
 
 	"github.com/dpolishuk/neograph/backend/internal/config"
 	"github.com/dpolishuk/neograph/backend/internal/db"
+	"github.com/dpolishuk/neograph/backend/internal/embedding"
 	"github.com/dpolishuk/neograph/backend/internal/git"
 	"github.com/dpolishuk/neograph/backend/internal/indexer"
 	"github.com/dpolishuk/neograph/backend/internal/models"
@@ -18,6 +19,7 @@ type Handler struct {
 	pipeline    *indexer.Pipeline
 	writer      *db.GraphWriter
 	graphReader *db.GraphReader
+	teiClient   *embedding.TEIClient
 }
 
 func NewHandler(cfg *config.Config, dbClient *db.Neo4jClient) *Handler {
@@ -28,6 +30,7 @@ func NewHandler(cfg *config.Config, dbClient *db.Neo4jClient) *Handler {
 		pipeline:    indexer.NewPipeline(dbClient),
 		writer:      db.NewGraphWriter(dbClient),
 		graphReader: db.NewGraphReader(dbClient),
+		teiClient:   embedding.NewTEIClient(cfg.TEI_URL),
 	}
 }
 
@@ -199,4 +202,78 @@ func (h *Handler) GetNodeDetail(c fiber.Ctx) error {
 		return c.Status(404).JSON(fiber.Map{"error": "node not found"})
 	}
 	return c.JSON(nodeDetail)
+}
+
+// GlobalSearch performs semantic search across all repositories
+func (h *Handler) GlobalSearch(c fiber.Ctx) error {
+	query := c.Query("q")
+	if query == "" {
+		return c.Status(400).JSON(fiber.Map{"error": "query parameter 'q' is required"})
+	}
+
+	// Get optional limit parameter
+	limit := fiber.Query[int](c, "limit", 10)
+	if limit < 1 || limit > 100 {
+		limit = 10
+	}
+
+	// Generate embedding for the query
+	embeddings, err := h.teiClient.Embed(c.Context(), []string{query})
+	if err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": "failed to generate embedding: " + err.Error()})
+	}
+
+	if len(embeddings) == 0 {
+		return c.Status(500).JSON(fiber.Map{"error": "no embedding generated"})
+	}
+
+	// Search Neo4j vector index (empty repoID means search all repos)
+	results, err := h.graphReader.VectorSearch(c.Context(), embeddings[0], limit, "")
+	if err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": "search failed: " + err.Error()})
+	}
+
+	if results == nil {
+		results = []db.SearchResult{}
+	}
+
+	return c.JSON(results)
+}
+
+// RepoSearch performs semantic search within a specific repository
+func (h *Handler) RepoSearch(c fiber.Ctx) error {
+	repoID := c.Params("id")
+	query := c.Query("q")
+
+	if query == "" {
+		return c.Status(400).JSON(fiber.Map{"error": "query parameter 'q' is required"})
+	}
+
+	// Get optional limit parameter
+	limit := fiber.Query[int](c, "limit", 10)
+	if limit < 1 || limit > 100 {
+		limit = 10
+	}
+
+	// Generate embedding for the query
+	embeddings, err := h.teiClient.Embed(c.Context(), []string{query})
+	if err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": "failed to generate embedding: " + err.Error()})
+	}
+
+	if len(embeddings) == 0 {
+		return c.Status(500).JSON(fiber.Map{"error": "no embedding generated"})
+	}
+
+	// Search Neo4j vector index filtered by repository
+	results, err := h.graphReader.VectorSearch(c.Context(), embeddings[0], limit, repoID)
+	if err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": "search failed: " + err.Error()})
+	}
+
+	if results == nil {
+		results = []db.SearchResult{}
+	}
+
+	return c.JSON(results)
 }

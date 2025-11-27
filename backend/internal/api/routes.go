@@ -7,6 +7,9 @@ import (
 func SetupRoutes(app *fiber.App, h *Handler) {
 	api := app.Group("/api")
 
+	// Search endpoints
+	api.Get("/search", h.GlobalSearch)
+
 	// Repositories
 	repos := api.Group("/repositories")
 	repos.Get("/", h.ListRepositories)
@@ -17,4 +20,5 @@ func SetupRoutes(app *fiber.App, h *Handler) {
 	repos.Get("/:id/files", h.GetRepositoryFiles)
 	repos.Get("/:id/graph", h.GetRepositoryGraph)
 	repos.Get("/:id/nodes/:nodeId", h.GetNodeDetail)
+	repos.Get("/:id/search", h.RepoSearch)
 }
