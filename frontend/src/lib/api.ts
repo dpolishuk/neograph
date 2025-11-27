@@ -90,3 +90,27 @@ export interface NodeDetail {
   calls?: string[]
   calledBy?: string[]
 }
+
+export interface SearchResult {
+  id: string
+  name: string
+  signature: string
+  filePath: string
+  repoId: string
+  repoName: string
+  score: number
+}
+
+export const searchApi = {
+  global: async (query: string): Promise<SearchResult[]> => {
+    const { data } = await api.get(`/api/search?q=${encodeURIComponent(query)}`)
+    return data
+  },
+
+  repo: async (repoId: string, query: string): Promise<SearchResult[]> => {
+    const { data } = await api.get(
+      `/api/repositories/${repoId}/search?q=${encodeURIComponent(query)}`
+    )
+    return data
+  },
+}
