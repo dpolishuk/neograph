@@ -10,7 +10,7 @@ function StatusBadge({ status }: { status: Repository['status'] }) {
     pending: 'default',
     indexing: 'warning',
     ready: 'success',
-    failed: 'destructive',
+    error: 'destructive',
   }
 
   return <Badge variant={variants[status]}>{status}</Badge>
@@ -49,11 +49,11 @@ function RepositoryCard({ repo }: { repo: Repository }) {
           </span>
           <span className="flex items-center gap-1">
             <FileCode className="w-4 h-4" />
-            {repo.fileCount} files
+            {repo.filesCount} files
           </span>
           <span className="flex items-center gap-1">
             <Box className="w-4 h-4" />
-            {repo.entityCount} entities
+            {repo.functionsCount} functions
           </span>
         </div>
 

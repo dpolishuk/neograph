@@ -14,12 +14,10 @@ export interface Repository {
   url: string
   name: string
   defaultBranch: string
-  status: 'pending' | 'indexing' | 'ready' | 'failed'
-  fileCount: number
-  entityCount: number
-  lastIndexedAt: string | null
-  createdAt: string
-  updatedAt: string
+  status: 'pending' | 'indexing' | 'ready' | 'error'
+  filesCount: number
+  functionsCount: number
+  lastIndexed: string
 }
 
 export interface CreateRepositoryInput {
