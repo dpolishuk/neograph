@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__perplexity-mcp__perplexity_ask",
+      "mcp__context7__resolve-library-id",
+      "mcp__context7__get-library-docs",
+      "Skill(superpowers:writing-plans)",
+      "Bash(mkdir:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git init:*)"
+    ]
+  },
+  "enabledMcpjsonServers": [
+    "perplexity-mcp",
+    "context7"
+  ]
+}
