@@ -1,6 +1,7 @@
 """Wiki generation using Claude."""
 import json
 import logging
+import re
 from typing import Any
 
 import anthropic
@@ -40,6 +41,11 @@ def get_code_structure(repo_id: str) -> dict[str, Any]:
     } as file
     ORDER BY file.path
     """
+
+    # Validate repo_id is a valid UUID to prevent injection
+    if not re.match(r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$', repo_id, re.I):
+        logger.error(f"Invalid repo_id format: {repo_id}")
+        return {}
 
     results = neo4j_query(query.replace("$repo_id", f"'{repo_id}'"))
 
@@ -161,7 +167,7 @@ def generate_wiki(repo_id: str, repo_name: str) -> dict[str, Any]:
 
     # Call Claude
     response = client.messages.create(
-        model="claude-sonnet-4-20250514",
+        model="claude-sonnet-4-5-20250929",
         max_tokens=8192,
         messages=[{"role": "user", "content": prompt}]
     )
