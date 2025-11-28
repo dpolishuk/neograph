@@ -205,9 +205,20 @@ async def wiki_generate(request: WikiGenerateRequest):
     """
     logger.info(f"Generating wiki for repo {request.repo_id} ({request.repo_name})")
 
-    result = generate_wiki(request.repo_id, request.repo_name)
-
-    return WikiGenerateResponse(pages=result.get("pages", []))
+    try:
+        result = generate_wiki(request.repo_id, request.repo_name)
+        return WikiGenerateResponse(pages=result.get("pages", []))
+    except Exception as e:
+        logger.error(f"Failed to generate wiki: {e}", exc_info=True)
+        # Return fallback response instead of crashing
+        return WikiGenerateResponse(pages=[WikiPage(
+            slug="overview",
+            title="Overview",
+            content=f"# {request.repo_name}\n\nWiki generation encountered an error. Please try again.",
+            order=1,
+            parent_slug=None,
+            diagrams=[]
+        )])
 
 
 @app.get("/health")
