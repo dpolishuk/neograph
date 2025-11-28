@@ -2,6 +2,10 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+**Note**: This project uses [bd (beads)](https://github.com/steveyegge/beads)
+for issue tracking. Use `bd` commands instead of markdown TODOs.
+See AGENTS.md for workflow details.
+
 ## Project Overview
 
 NeoGraph is a code intelligence platform that indexes Git repositories into a Neo4j graph database, enabling semantic search and AI-powered code exploration. It consists of three services:
