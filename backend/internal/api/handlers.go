@@ -2,7 +2,6 @@ package api
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/dpolishuk/neograph/backend/internal/agent"
 	"github.com/dpolishuk/neograph/backend/internal/config"
@@ -372,11 +371,10 @@ func (h *Handler) GetWikiStatus(c fiber.Ctx) error {
 	return c.JSON(status)
 }
 
-// generateWikiPages generates all wiki pages for a repository (placeholder implementation)
+// generateWikiPages generates all wiki pages for a repository using Claude
 func (h *Handler) generateWikiPages(repo *models.Repository) {
 	ctx := context.Background()
 
-	// Helper to set error status
 	setError := func(msg string) {
 		status := &models.WikiStatus{
 			Status:       "error",
@@ -386,32 +384,71 @@ func (h *Handler) generateWikiPages(repo *models.Repository) {
 		h.wikiWriter.UpdateWikiStatus(ctx, repo.ID, status)
 	}
 
+	// Set status to generating
+	h.wikiWriter.UpdateWikiStatus(ctx, repo.ID, &models.WikiStatus{
+		Status:   "generating",
+		Progress: 0,
+	})
+
 	// Clear existing wiki
 	if err := h.wikiWriter.ClearWiki(ctx, repo.ID); err != nil {
 		setError("failed to clear existing wiki: " + err.Error())
 		return
 	}
 
-	// Create placeholder overview page
-	overviewPage := &models.WikiPage{
-		RepoID:     repo.ID,
-		Slug:       "overview",
-		Title:      "Overview",
-		Order:      1,
-		ParentSlug: "",
-		Content:    fmt.Sprintf("# %s\n\nDocumentation for %s.\n\n*Wiki generation coming soon...*", repo.Name, repo.Name),
-		Diagrams:   []models.Diagram{},
-	}
-	if err := h.wikiWriter.WritePage(ctx, overviewPage); err != nil {
-		setError("failed to write overview page: " + err.Error())
+	// Call agents service to generate wiki
+	wikiResp, err := h.agentProxy.GenerateWiki(ctx, repo.ID, repo.Name)
+	if err != nil {
+		setError("failed to generate wiki: " + err.Error())
 		return
 	}
 
-	// Update status to ready
-	status := &models.WikiStatus{
+	// Store each page
+	totalPages := len(wikiResp.Pages)
+	for i, page := range wikiResp.Pages {
+		// Convert diagrams
+		diagrams := make([]models.Diagram, len(page.Diagrams))
+		for j, d := range page.Diagrams {
+			diagrams[j] = models.Diagram{
+				ID:    d.ID,
+				Title: d.Title,
+				Code:  d.Code,
+			}
+		}
+
+		// Create wiki page
+		wikiPage := &models.WikiPage{
+			RepoID:     repo.ID,
+			Slug:       page.Slug,
+			Title:      page.Title,
+			Content:    page.Content,
+			Order:      page.Order,
+			ParentSlug: "",
+			Diagrams:   diagrams,
+		}
+		if page.ParentSlug != nil {
+			wikiPage.ParentSlug = *page.ParentSlug
+		}
+
+		if err := h.wikiWriter.WritePage(ctx, wikiPage); err != nil {
+			setError("failed to write page: " + err.Error())
+			return
+		}
+
+		// Update progress
+		progress := ((i + 1) * 100) / totalPages
+		h.wikiWriter.UpdateWikiStatus(ctx, repo.ID, &models.WikiStatus{
+			Status:      "generating",
+			Progress:    progress,
+			CurrentPage: page.Title,
+			TotalPages:  totalPages,
+		})
+	}
+
+	// Set status to ready
+	h.wikiWriter.UpdateWikiStatus(ctx, repo.ID, &models.WikiStatus{
 		Status:     "ready",
 		Progress:   100,
-		TotalPages: 1,
-	}
-	h.wikiWriter.UpdateWikiStatus(ctx, repo.ID, status)
+		TotalPages: totalPages,
+	})
 }
