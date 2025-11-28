@@ -163,6 +163,9 @@ func (h *Handler) indexRepository(repo *models.Repository) {
 		return
 	}
 
+	// Auto-generate wiki after successful indexing
+	go h.generateWikiPages(repo)
+
 	// Status will be updated to 'ready' by WriteIndexResult
 }
 
