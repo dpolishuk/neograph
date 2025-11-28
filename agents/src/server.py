@@ -14,6 +14,7 @@ from .agents import (
     get_analyzer_prompt,
     get_doc_writer_prompt,
 )
+from .wiki import generate_wiki
 
 logger = logging.getLogger(__name__)
 
@@ -44,6 +45,27 @@ class ChatResponse(BaseModel):
 
     response: str
     tool_calls: List[Dict[str, Any]] = []
+
+
+class WikiGenerateRequest(BaseModel):
+    """Request model for wiki generation."""
+    repo_id: str
+    repo_name: str
+
+
+class WikiPage(BaseModel):
+    """Single wiki page."""
+    slug: str
+    title: str
+    content: str
+    order: int
+    parent_slug: Optional[str] = None
+    diagrams: List[Dict[str, Any]] = []
+
+
+class WikiGenerateResponse(BaseModel):
+    """Response model for wiki generation."""
+    pages: List[WikiPage]
 
 
 def get_system_prompt(agent_type: str, repo_id: Optional[str] = None) -> str:
@@ -168,6 +190,24 @@ async def chat(request: ChatRequest):
         response="Maximum iterations reached. Please try rephrasing your question.",
         tool_calls=tool_calls_log
     )
+
+
+@app.post("/wiki/generate", response_model=WikiGenerateResponse)
+async def wiki_generate(request: WikiGenerateRequest):
+    """
+    Generate wiki pages for a repository.
+
+    Args:
+        request: Wiki generation request with repo_id and repo_name
+
+    Returns:
+        WikiGenerateResponse with generated pages
+    """
+    logger.info(f"Generating wiki for repo {request.repo_id} ({request.repo_name})")
+
+    result = generate_wiki(request.repo_id, request.repo_name)
+
+    return WikiGenerateResponse(pages=result.get("pages", []))
 
 
 @app.get("/health")
