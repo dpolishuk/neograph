@@ -95,7 +95,45 @@ def get_code_structure(repo_id: str) -> dict[str, Any]:
     return modules
 
 
-WIKI_PROMPT = """You are generating documentation for a code repository.
+def fix_json_newlines(text: str) -> str:
+    """
+    Fix unescaped newlines inside JSON string values.
+
+    Claude sometimes outputs actual newlines in JSON strings instead of \\n.
+    This function attempts to fix that.
+    """
+    result = []
+    in_string = False
+    escape_next = False
+
+    for char in text:
+        if escape_next:
+            result.append(char)
+            escape_next = False
+            continue
+
+        if char == '\\':
+            escape_next = True
+            result.append(char)
+            continue
+
+        if char == '"' and not escape_next:
+            in_string = not in_string
+            result.append(char)
+            continue
+
+        if in_string and char == '\n':
+            # Replace actual newline with escaped newline
+            result.append('\\n')
+        elif in_string and char == '\t':
+            result.append('\\t')
+        else:
+            result.append(char)
+
+    return ''.join(result)
+
+
+WIKI_PROMPT = """You are generating comprehensive documentation with diagrams for a code repository, similar to DeepWiki.
 
 ## Repository: {repo_name}
 
@@ -103,52 +141,120 @@ WIKI_PROMPT = """You are generating documentation for a code repository.
 {code_structure}
 
 ## Instructions:
-Generate a multi-page wiki with:
+Generate a multi-page wiki with rich Mermaid diagrams throughout.
+
+### Page Structure:
 
 1. **Overview page** (slug: "overview", order: 1)
-   - Project purpose based on the code
-   - Architecture diagram in mermaid format
-   - Key modules summary (one line each)
+   - Project purpose and description
+   - **System Architecture diagram** (graph TD) showing all major components
+   - Key modules summary with one-line descriptions
+   - Include inline mermaid diagram in content using ```mermaid blocks
 
-2. **Module pages** (one per directory, order: 2+)
-   - Module purpose
-   - Key functions with brief descriptions
+2. **Module pages** (one per major directory, order: 2+)
+   - Module purpose and responsibilities
+   - **Module Architecture diagram** showing internal components
+   - Key functions/classes with descriptions
+   - **Sequence diagram** if the module handles request flows
    - How this module relates to others
 
+### Diagram Types to Use:
+
+1. **Flowcharts** (graph TD/LR) - For architecture, data flow, component relationships
+   ```mermaid
+   graph TD
+       A[Component] --> B[Component]
+       subgraph Module Name
+           C[Internal] --> D[Internal]
+       end
+   ```
+
+2. **Sequence Diagrams** - For API calls, request handling, inter-module communication
+   ```mermaid
+   sequenceDiagram
+       participant Client
+       participant Server
+       Client->>Server: Request
+       Server-->>Client: Response
+   ```
+
+3. **Class Diagrams** - For OOP structures, interfaces, inheritance
+   ```mermaid
+   classDiagram
+       class ClassName {{
+           +property: type
+           +method(): returnType
+       }}
+       ClassName <|-- SubClass
+   ```
+
+4. **ER Diagrams** - For data models, database schemas
+   ```mermaid
+   erDiagram
+       ENTITY1 ||--o{{ ENTITY2 : relationship
+       ENTITY1 {{
+           string id
+           string name
+       }}
+   ```
+
+### Diagram Placement:
+- Put diagrams in BOTH the "diagrams" array AND inline in "content" using ```mermaid blocks
+- Each page should have at least 1-2 diagrams
+- Overview should have system architecture + data flow diagrams
+- Module pages should have component diagram + sequence diagram if applicable
+
 ## Output Format:
-Return ONLY valid JSON (no markdown, no explanation) with this exact structure:
+Return ONLY valid JSON (no markdown wrapper, no explanation) with this structure:
 {{
   "pages": [
     {{
       "slug": "overview",
       "title": "Overview",
-      "content": "# Project Name\\n\\nmarkdown content...",
+      "content": "# Project Name\\n\\nDescription...\\n\\n## System Architecture\\n\\n```mermaid\\ngraph TD\\n    A[Module] --> B[Module]\\n```\\n\\n## Key Modules\\n\\n...",
       "order": 1,
       "parent_slug": null,
       "diagrams": [
         {{
-          "id": "architecture",
-          "title": "Architecture",
-          "code": "graph TD\\n  A[Module] --> B[Module]"
+          "id": "system-architecture",
+          "title": "System Architecture",
+          "code": "graph TD\\n    subgraph Frontend\\n        UI[User Interface]\\n    end\\n    subgraph Backend\\n        API[API Server]\\n        DB[(Database)]\\n    end\\n    UI --> API\\n    API --> DB"
+        }},
+        {{
+          "id": "data-flow",
+          "title": "Data Flow",
+          "code": "graph LR\\n    Input --> Process --> Output"
         }}
       ]
     }},
     {{
       "slug": "module-name",
       "title": "Module Name",
-      "content": "# Module Name\\n\\nmarkdown content...",
+      "content": "# Module Name\\n\\nPurpose...\\n\\n## Architecture\\n\\n```mermaid\\ngraph TD\\n    A --> B\\n```\\n\\n## Key Functions\\n\\n...",
       "order": 2,
       "parent_slug": "overview",
-      "diagrams": []
+      "diagrams": [
+        {{
+          "id": "module-architecture",
+          "title": "Module Architecture",
+          "code": "graph TD\\n    A[Handler] --> B[Service]\\n    B --> C[Repository]"
+        }}
+      ]
     }}
   ]
 }}
 
-IMPORTANT:
-- Return ONLY the JSON, no other text
-- Use \\n for newlines in content strings
-- Keep content concise (200-400 words per page)
-- Generate 3-6 pages total
+CRITICAL JSON FORMATTING RULES:
+- Return ONLY valid JSON, no text before or after
+- ALL newlines in strings MUST be escaped as \\n (two characters: backslash + n)
+- NEVER use actual newline characters inside JSON string values
+- Example correct: "content": "Line 1\\nLine 2\\n```mermaid\\ngraph TD\\n    A --> B\\n```"
+- Example WRONG: "content": "Line 1
+Line 2" (this breaks JSON parsing)
+- Each page should have 1-3 diagrams minimum
+- Use subgraphs in flowcharts to group related components
+- Generate 4-8 pages total with comprehensive diagrams
+- Make diagrams detailed with meaningful node names from the actual code
 """
 
 
@@ -215,15 +321,24 @@ def generate_wiki(repo_id: str, repo_name: str) -> dict[str, Any]:
         logger.info(f"Generated {len(result.get('pages', []))} wiki pages")
         return result
     except json.JSONDecodeError as e:
-        logger.error(f"Failed to parse Claude response: {e}")
-        logger.error(f"Response was: {response_text[:500]}")
-        return {
-            "pages": [{
-                "slug": "overview",
-                "title": "Overview",
-                "content": f"# {repo_name}\n\nWiki generation failed. Please try again.",
-                "order": 1,
-                "parent_slug": None,
-                "diagrams": []
-            }]
-        }
+        logger.warning(f"Initial JSON parse failed: {e}, attempting to fix newlines")
+        # Try to fix unescaped newlines in JSON strings
+        try:
+            # Fix newlines inside JSON string values
+            fixed_text = fix_json_newlines(response_text)
+            result = json.loads(fixed_text)
+            logger.info(f"Generated {len(result.get('pages', []))} wiki pages (after fixing)")
+            return result
+        except json.JSONDecodeError as e2:
+            logger.error(f"Failed to parse Claude response even after fix: {e2}")
+            logger.error(f"Response was: {response_text[:500]}")
+            return {
+                "pages": [{
+                    "slug": "overview",
+                    "title": "Overview",
+                    "content": f"# {repo_name}\n\nWiki generation failed. Please try again.",
+                    "order": 1,
+                    "parent_slug": None,
+                    "diagrams": []
+                }]
+            }
