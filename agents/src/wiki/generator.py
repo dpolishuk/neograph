@@ -11,8 +11,32 @@ from ..tools.neo4j_tools import neo4j_query
 
 logger = logging.getLogger(__name__)
 
+
+def get_anthropic_client() -> anthropic.Anthropic:
+    """
+    Create Anthropic client with flexible authentication.
+
+    Supports:
+    - ANTHROPIC_API_KEY: Standard API key authentication
+    - ANTHROPIC_AUTH_TOKEN + ANTHROPIC_BASE_URL: OAuth/custom endpoint
+    """
+    kwargs = {}
+
+    # Set base URL if provided (for custom endpoints)
+    if settings.anthropic_base_url:
+        kwargs["base_url"] = settings.anthropic_base_url
+
+    # Prefer auth token if both base_url and auth_token are set (enterprise/custom)
+    if settings.anthropic_base_url and settings.anthropic_auth_token:
+        kwargs["api_key"] = settings.anthropic_auth_token
+    elif settings.anthropic_api_key:
+        kwargs["api_key"] = settings.anthropic_api_key
+
+    return anthropic.Anthropic(**kwargs)
+
+
 # Initialize Anthropic client
-client = anthropic.Anthropic(api_key=settings.anthropic_api_key)
+client = get_anthropic_client()
 
 
 def get_code_structure(repo_id: str) -> dict[str, Any]:

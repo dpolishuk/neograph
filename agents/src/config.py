@@ -1,13 +1,16 @@
 """Configuration management for NeoGraph agents."""
 import os
+from typing import Optional
 from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
     """Environment configuration for agents service."""
 
-    # Anthropic API
+    # Anthropic API - supports both API key and auth token methods
     anthropic_api_key: str = os.getenv("ANTHROPIC_API_KEY", "")
+    anthropic_auth_token: Optional[str] = os.getenv("ANTHROPIC_AUTH_TOKEN")
+    anthropic_base_url: Optional[str] = os.getenv("ANTHROPIC_BASE_URL")
 
     # Neo4j connection
     neo4j_uri: str = os.getenv("NEO4J_URI", "bolt://localhost:7687")
