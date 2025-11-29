@@ -358,7 +358,7 @@ def generate_wiki(repo_id: str, repo_name: str) -> dict[str, Any]:
 
     # Call Claude with extended token limit for comprehensive documentation
     response = client.messages.create(
-        model="claude-sonnet-4-5-20250929",
+        model=settings.model,
         max_tokens=16384,
         messages=[{"role": "user", "content": prompt}]
     )

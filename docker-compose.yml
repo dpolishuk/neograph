@@ -78,6 +78,7 @@ services:
     ports:
       - "8001:8001"
     environment:
+      - MODEL=${MODEL}
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
       - ANTHROPIC_AUTH_TOKEN=${ANTHROPIC_AUTH_TOKEN}
       - ANTHROPIC_BASE_URL=${ANTHROPIC_BASE_URL}

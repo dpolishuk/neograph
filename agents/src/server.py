@@ -117,7 +117,7 @@ async def chat(request: ChatRequest):
     for iteration in range(max_iterations):
         # Call Claude API
         response = client.messages.create(
-            model="claude-sonnet-4-20250514",
+            model=settings.model,
             max_tokens=4096,
             tools=tools,
             messages=messages,

@@ -12,6 +12,9 @@ class Settings(BaseSettings):
     anthropic_auth_token: Optional[str] = os.getenv("ANTHROPIC_AUTH_TOKEN")
     anthropic_base_url: Optional[str] = os.getenv("ANTHROPIC_BASE_URL")
 
+    # Model configuration
+    model: str = os.getenv("MODEL", "glm-4.6")
+
     # Neo4j connection
     neo4j_uri: str = os.getenv("NEO4J_URI", "bolt://localhost:7687")
     neo4j_user: str = os.getenv("NEO4J_USER", "neo4j")
