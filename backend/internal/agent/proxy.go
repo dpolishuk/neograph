@@ -130,8 +130,8 @@ func (p *AgentProxy) GenerateWiki(ctx context.Context, repoID, repoName string) 
 	}
 	req.Header.Set("Content-Type", "application/json")
 
-	// Execute request with longer timeout for wiki generation
-	client := &http.Client{Timeout: 120 * time.Second}
+	// Execute request with longer timeout for wiki generation (5 minutes for large repos)
+	client := &http.Client{Timeout: 300 * time.Second}
 	resp, err := client.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to execute request: %w", err)
